@@ -1,0 +1,11 @@
+# Godot 4 のキャッシュ・インポート済みデータ(エディタが自動生成するためGitに含めない)
+.godot/
+
+# Android向けビルドテンプレート(エクスポート時に生成)
+/android/
+
+
+# OSが自動生成するファイル
+.DS_Store
+Thumbs.db
+desktop.ini
