@@ -2,7 +2,7 @@
 
 このファイルは、このプロジェクトにおける**仕様の正(Single Source of Truth)**である。仕様・状態が変わったら、このファイルを更新する。判断の理由は[decisions.md](./decisions.md)に記録する。
 
-最終更新: 2026-10-01(初期セットアップ時)
+最終更新: 2026-10-01(Godot開発環境の確定時)
 
 ---
 
@@ -13,7 +13,9 @@
 | タイトル | 夜勤脱出 |
 | リポジトリ名 | `night-shift-escape` |
 | ジャンル | 2D探索ゲーム |
-| エンジン | Godot([decisions.md](./decisions.md) Decision 001) |
+| エンジン | Godot 4.7.2 標準版([decisions.md](./decisions.md) Decision 001・010) |
+| スクリプト言語 | GDScript(Decision 010) |
+| レンダラー | GL Compatibility(互換性)(Decision 011) |
 | 開発期間の目安 | 1週間(MVP完成まで) |
 
 夜勤中の病院を探索し、制限時間内に3つのアイテムを集めてナースステーションへ戻るゲーム。
@@ -149,9 +151,10 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
 
 ## 18. 現在の開発状況
 
-- **フェーズ:** 開発初期(初期セットアップ完了)
+- **フェーズ:** 開発初期(Godot開発環境の確定完了)
 - **実装済み:** なし(ゲーム本体のシーン・スクリプトは未作成)
-- **未確定の事項:**
-  - Godotのバージョン:開発環境にまだインストールされていない。インストール時に確定し、このファイルに記載する。
-  - スクリプト言語:未決定。決定したらDecisionとして記録する。
-  - Godotプロジェクトファイル(`project.godot`):Godotのインストール後に、エディタでこのフォルダに作成する。
+- **確定した事項:**
+  - Godotのバージョン:4.7.2 標準版(Decision 010)。
+  - スクリプト言語:GDScript(Decision 010)。
+  - レンダラー:GL Compatibility(Decision 011)。
+  - Godotプロジェクトファイル(`project.godot`):リポジトリ直下に作成済み。
