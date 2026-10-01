@@ -36,7 +36,8 @@
 
 | 技術 | 用途 |
 |---|---|
-| Godot | ゲームエンジン(バージョンは開発環境の構築時に確定し、記載予定) |
+| Godot 4.7.2(標準版) | ゲームエンジン(レンダラー: GL Compatibility) |
+| GDScript | スクリプト言語 |
 | Git / GitHub | バージョン管理 |
 
 技術を選んだ理由は[decisions.md](./decisions.md)に記録しています。
