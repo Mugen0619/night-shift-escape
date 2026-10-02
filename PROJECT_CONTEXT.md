@@ -2,7 +2,7 @@
 
 このファイルは、このプロジェクトにおける**仕様の正(Single Source of Truth)**である。仕様・状態が変わったら、このファイルを更新する。判断の理由は[decisions.md](./decisions.md)に記録する。
 
-最終更新: 2026-10-02(Day 2「アイテム配置・取得機能」完了時)
+最終更新: 2026-10-02(CI①「GitHub Actionsによるスモークテスト」完了時)
 
 ---
 
@@ -151,14 +151,22 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
 
 ## 18. 現在の開発状況
 
-- **フェーズ:** MVP開発中(Day 2「アイテム配置・取得機能」まで完了)
+- **フェーズ:** MVP開発中(Day 2「アイテム配置・取得機能」およびCI①「GitHub Actionsによるスモークテスト」まで完了)
 - **実装済み:**
   - Godotプロジェクトの初期設定(Issue #1 / PR #2)
   - プレイヤー表示、4方向移動、壁との衝突判定(Day 1。Issue #3 / PR #4)
   - 鍵・カルテ・懐中電灯の配置、アイテム取得、取得済みアイテムの消去、アイテム取得状態の管理(Day 2。Issue #5 / PR #6)
+  - GitHub Actionsによるスモークテスト(CI①。Issue #8 / PR #9)
 - **現在の状態管理:**
   - `GameManager`(`scripts/game_manager.gd`)をAutoloadとして登録している(Decision 012)。
   - 現在管理しているのは `has_key` / `has_chart` / `has_flashlight` の3つだけ。アイテム取得時に `collect_item(item_type)` で更新する。
+- **CI(自動テスト):**(Decision 013)
+  - `.github/workflows/ci.yml` で、`pull_request`(main向け)と `push`(main)のときに実行する。同一workflow・同一refの古い実行はキャンセルする。
+  - 実行環境はUbuntu 24.04。Godot 4.7.2 stable official(Linux版)を公式ビルド配布元から取得し、SHA512を検証してから使う。
+  - スモークテスト(`tests/smoke/run_smoke_test.sh` / `tests/smoke/smoke_test.gd`)で、headlessでのプロジェクトのimport、Autoload `GameManager` の存在、Main Sceneの設定・ロード・インスタンス化、60物理フレームの実行を確認する。
+  - 成功条件は「終了コード0」「ログにGodotのエラー出力がない」「`SMOKE_TEST_PASSED` が出力される」の3つをすべて満たすこと(Godotはエラーがあっても終了コード0で終わる場合があるため)。
+  - CIが保証するのは「GodotプロジェクトがCI環境で正常に読み込まれ、Main Sceneを起動し、基本的な実行状態まで到達できること」まで。キーボード操作・壁との衝突・アイテム取得などのゲーム機能そのものはテストしていない。ゲーム機能の単体テスト・統合テストは、今後必要に応じて追加する。
+  - ローカルでは、Godotのconsole版の実行ファイルを環境変数 `GODOT` に指定して `bash tests/smoke/run_smoke_test.sh` で同じ確認ができる。
 - **未実装のMVP機能:**
   - 制限時間
   - 残り時間UI
