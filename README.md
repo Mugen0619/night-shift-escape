@@ -39,6 +39,7 @@
 | Godot 4.7.2(標準版) | ゲームエンジン(レンダラー: GL Compatibility) |
 | GDScript | スクリプト言語 |
 | Git / GitHub | バージョン管理 |
+| GitHub Actions(Ubuntu 24.04 runner) | CI(PR・mainへのpush時に、Godot 4.7.2でスモークテストを実行) |
 
 技術を選んだ理由は[decisions.md](./decisions.md)に記録しています。
 

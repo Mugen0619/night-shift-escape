@@ -188,3 +188,39 @@
   - GameManagerの責務が増えすぎた場合。
   - 現在の構成では管理しにくい状態が発生した場合。
   - MVP完成後にゲーム構造を拡張する場合。
+
+## Decision 013: GitHub Actionsによるスモークテストを導入する
+
+- **日付:** 2026-10-02
+- **状態:** 採用
+- **判断内容:**
+  - CI①(Issue #8 / PR #9)で、GitHub Actions(`.github/workflows/ci.yml`)によるスモークテストを導入する。
+  - 実行タイミングは `pull_request`(main向け)と `push`(main)とする。同一workflow・同一refの古い実行はキャンセルする(`concurrency`)。
+  - 実行環境はUbuntu 24.04(`ubuntu-24.04`)のrunnerとする。
+  - Godotは4.7.2 stable official(Linux版)を、Godot公式のビルド配布元(`godotengine/godot-builds`)から取得し、公式のSHA512を照合してから使う。サードパーティ製のGodotセットアップ用Actionは使わない。
+  - 使用するActionはGitHub公式の `actions/checkout` と `actions/cache`(Godotバイナリのキャッシュ用)だけとし、タグではなくコミットSHAで固定する。
+  - スモークテストでは、headlessでのプロジェクトのimport、Autoload `GameManager` の存在、Main Sceneの設定・ロード・インスタンス化、60物理フレームの実行を確認する。
+  - 成功条件は「終了コード0」「ログにGodotのエラー出力(`ERROR:` / `SCRIPT ERROR:` / `Parse Error` 等)がない」「`SMOKE_TEST_PASSED` マーカーが出力される」の3つをすべて満たすこととする。
+- **判断理由:**
+  - Day 3以降の実装に入る前に、PRごとにプロジェクトが壊れていないことを自動で確認できる最低限の基盤を作るため。
+  - Godotはパースエラーや `push_error` があっても終了コード0で終わる場合があり、終了コードだけでは失敗を検出できないため。CI①で、意図的な構文エラー・`push_error` が終了コード0のままでも、ログ検出によってCIが失敗として扱えることを確認した。
+  - `--check-only --script` ではAutoloadが読み込まれず、`item.gd` で `GameManager` が見つからないという誤検知が出たため、Main Sceneを実際に起動する方式にした。
+  - 公式ビルドの直接取得とSHA512照合で、バージョンを固定して再現可能にし、外部Actionへの依存を増やさないため。
+  - Ubuntu runnerは起動が速く、headlessのGodot CIの事例が多い。GDScriptのロジックとシーン読み込みはOSへの依存が小さいため。
+  - 検証結果: PR上で成功し、PR #9のmerge後にmainへのpushで自動実行されたRun `36967607796` でもPASSした(約14秒、`4.7.2.stable.official.ed1daf0bf`、`SMOKE_TEST_PASSED`)。
+- **採用しなかった選択肢:**
+  - Godotの終了コードだけで成否を判定する方法(エラーを見逃すため)。
+  - `--check-only --script` による構文チェック(Autoloadを読み込まず誤検知するため)。
+  - サードパーティ製のセットアップAction(`chickensoft-games/setup-godot` 等)。
+  - Windows runner(起動が遅く、現時点でWindows固有の確認対象がないため)。
+  - CI①の時点でのテストフレームワーク(GUT / gdUnit4)の導入(Issueの範囲をCI基盤の構築に限定したため)。
+- **判断に影響した条件:**
+  - 開発環境がWindowsで、Godot CLIがPATHに入っていないこと。
+  - `.godot/` がGit管理外のため、CIではimportが必要なこと。
+  - リポジトリがPublicで、GitHub Actionsを無料で利用できること。
+  - 開発期間の目安が1週間であり、CIはMVP開発を妨げない最小構成にとどめること。
+- **再検討条件:**
+  - ゲーム機能の単体テスト・統合テストを追加する場合(テストフレームワークの選定を含む)。
+  - Godotのバージョンを変更する場合(`GODOT_VERSION` と `GODOT_SHA512` を更新する)。
+  - 正常な状態でもGodotがエラー行を出力するようになり、ログ検出で誤検知が起きる場合。
+  - Windows固有の確認や書き出し(export)をCIで行う必要が出た場合。
