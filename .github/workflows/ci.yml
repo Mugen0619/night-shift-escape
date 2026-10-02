@@ -1,0 +1,59 @@
+# Godotプロジェクトのスモークテスト。
+# Godot 4.7.2 をheadlessで動かし、プロジェクトのimportとMain Sceneの起動ができることを確認する。
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 同じブランチ(PR)に続けてpushしたら、古い実行をキャンセルする。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # project.godot / decisions.md(Decision 010)と同じバージョンに固定する。
+  GODOT_VERSION: 4.7.2
+  # godotengine/godot-builds の SHA512-SUMS.txt に記載された Godot_v4.7.2-stable_linux.x86_64.zip の値。
+  GODOT_SHA512: 9aa00f7a605200940bce3027a567b782f49bd8e940dd06ae9e987bd65aee1b1467edd56ed84fcdcbdd44354bf613bdbb4e5d2913e925850368e150c59ed54c65
+
+jobs:
+  smoke-test:
+    name: Godot smoke test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux-x86_64-${{ env.GODOT_SHA512 }}
+
+      # Godot公式のビルド配布リポジトリから取得し、チェックサムを照合してから展開する。
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          zip="Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -fsSL -o "$zip" "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/${zip}"
+          echo "${GODOT_SHA512}  ${zip}" | sha512sum -c -
+          mkdir -p ~/godot
+          unzip -q "$zip" -d ~/godot
+          rm "$zip"
+
+      - name: Set up Godot
+        run: |
+          godot="$HOME/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+          chmod +x "$godot"
+          echo "GODOT=$godot" >> "$GITHUB_ENV"
+
+      - name: Run smoke test
+        run: bash tests/smoke/run_smoke_test.sh
