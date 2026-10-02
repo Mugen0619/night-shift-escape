@@ -26,4 +26,3 @@ func _on_body_entered(body: Node2D) -> void:
 	GameManager.collect_item(item_type)
 	# ノードごと削除するので、同じアイテムをもう一度取得することはない。
 	queue_free()
-func broken(:
