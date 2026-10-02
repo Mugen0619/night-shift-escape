@@ -2,7 +2,7 @@
 
 このファイルは、このプロジェクトにおける**仕様の正(Single Source of Truth)**である。仕様・状態が変わったら、このファイルを更新する。判断の理由は[decisions.md](./decisions.md)に記録する。
 
-最終更新: 2026-10-02(CI①「GitHub Actionsによるスモークテスト」完了時)
+最終更新: 2026-10-02(CI②「GeminiによるPR自動レビュー」完了時)
 
 ---
 
@@ -151,12 +151,13 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
 
 ## 18. 現在の開発状況
 
-- **フェーズ:** MVP開発中(Day 2「アイテム配置・取得機能」およびCI①「GitHub Actionsによるスモークテスト」まで完了)
+- **フェーズ:** MVP開発中(Day 2「アイテム配置・取得機能」、CI①「GitHub Actionsによるスモークテスト」およびCI②「GeminiによるPR自動レビュー」まで完了)
 - **実装済み:**
   - Godotプロジェクトの初期設定(Issue #1 / PR #2)
   - プレイヤー表示、4方向移動、壁との衝突判定(Day 1。Issue #3 / PR #4)
   - 鍵・カルテ・懐中電灯の配置、アイテム取得、取得済みアイテムの消去、アイテム取得状態の管理(Day 2。Issue #5 / PR #6)
   - GitHub Actionsによるスモークテスト(CI①。Issue #8 / PR #9)
+  - GeminiによるPR自動レビュー(CI②。Issue #12 / PR #13)
 - **現在の状態管理:**
   - `GameManager`(`scripts/game_manager.gd`)をAutoloadとして登録している(Decision 012)。
   - 現在管理しているのは `has_key` / `has_chart` / `has_flashlight` の3つだけ。アイテム取得時に `collect_item(item_type)` で更新する。
@@ -167,6 +168,18 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - 成功条件は「終了コード0」「ログにGodotのエラー出力がない」「`SMOKE_TEST_PASSED` が出力される」の3つをすべて満たすこと(Godotはエラーがあっても終了コード0で終わる場合があるため)。
   - CIが保証するのは「GodotプロジェクトがCI環境で正常に読み込まれ、Main Sceneを起動し、基本的な実行状態まで到達できること」まで。キーボード操作・壁との衝突・アイテム取得などのゲーム機能そのものはテストしていない。ゲーム機能の単体テスト・統合テストは、今後必要に応じて追加する。
   - ローカルでは、Godotのconsole版の実行ファイルを環境変数 `GODOT` に指定して `bash tests/smoke/run_smoke_test.sh` で同じ確認ができる。
+- **AIによるPR自動レビュー(CI②):**(Decision 014)
+  - 役割分担:CI①は「Godotプロジェクトが起動・読み込みできるか」を確認し、CI②は「PRの変更内容をGeminiが独立してコードレビューする」。両者は別のworkflowに分けている。
+  - `.github/workflows/gemini-review.yml` で、main向けPRの `opened` / `synchronize` / `reopened` / `ready_for_review` のときに実行する。mainへのpushでは実行しない。Draft PRでは実行せず、Draft解除時(`ready_for_review`)に実行する。fork PRでは実行しない。同じPRで古いレビューが実行中の場合はキャンセルし、最新コミットのレビューを優先する。
+  - `.github/scripts/gemini_review.py`(Python標準ライブラリのみ)が、Gemini Interactions API(`https://generativelanguage.googleapis.com/v1beta/interactions`、`x-goog-api-key` ヘッダーで認証、`store: false`)を呼び出す。
+  - APIキーはGitHub Actions Secret `GEMINI_API_KEY` から取得する。コード・ログ・PRコメントには出さない。
+  - デフォルトモデルは `gemini-3.8-flash`。GitHub Repository Variable `GEMINI_MODEL` を設定すると変更できる。
+  - Geminiに渡す情報:PRタイトル・本文、base/head、関連Issue(PR本文の `Closes #N`)、`PROJECT_CONTEXT.md`、`decisions.md`、`.gemini/styleguide.md`(レビュー観点)、変更ファイル一覧、`base...head` のdiff。diffは100,000文字を超えると後半を切り詰める。Godotの自動生成ファイル(`*.uid` / `*.import`)や画像・音声はレビュー対象から除外する。
+  - 結果はPRコメントとして投稿する。1行目は `VERDICT: NO_ISSUES` または `VERDICT: ISSUES_FOUND` で、指摘がある場合はSeverity / ファイル / 行 / 問題 / 理由 / 修正案を表で示す。同じPRの再レビューでは、新しいコメントを作らず既存のGeminiレビューコメントを更新する。
+  - Secret未設定・認証失敗・API失敗・レスポンス解析失敗・VERDICT行なし・PRコメント投稿失敗は、workflowの失敗とする。HTTP 429 / 500 / 503は一時的なエラーとして20秒後・60秒後に再試行し、HTTP 400 / 401 / 403などは再試行せずに失敗とする。
+  - Geminiが `ISSUES_FOUND` を返しても、workflow自体は失敗にしない。
+  - GeminiはPRのApprove・Mergeを行わない。workflowの権限は `contents: read` / `issues: read` / `pull-requests: write` だけ。
+  - **Geminiレビューは判断材料であり、指摘をそのまま事実として扱わない。** 開発者が根拠を確認したうえで採否を判断し、修正・Mergeの最終判断も開発者が行う(PR #13では、実装・実動確認・公式ドキュメントと一致しない指摘も出た)。
 - **未実装のMVP機能:**
   - 制限時間
   - 残り時間UI

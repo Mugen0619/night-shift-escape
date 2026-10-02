@@ -224,3 +224,49 @@
   - Godotのバージョンを変更する場合(`GODOT_VERSION` と `GODOT_SHA512` を更新する)。
   - 正常な状態でもGodotがエラー行を出力するようになり、ログ検出で誤検知が起きる場合。
   - Windows固有の確認や書き出し(export)をCIで行う必要が出た場合。
+
+## Decision 014: GeminiによるPR自動レビューを導入する
+
+- **日付:** 2026-10-02
+- **状態:** 採用
+- **判断内容:**
+  - CI②(Issue #12 / PR #13)で、GitHub ActionsからGemini APIを呼び出すPR自動レビュー(`.github/workflows/gemini-review.yml` / `.github/scripts/gemini_review.py` / `.gemini/styleguide.md`)を導入する。
+  - main向けPRの作成・更新時(`opened` / `synchronize` / `reopened` / `ready_for_review`)にレビューする。mainへのpush、Draft PR、fork PRでは実行しない。
+  - Gemini Interactions API(`https://generativelanguage.googleapis.com/v1beta/interactions`)を使う。認証は `x-goog-api-key` ヘッダー、APIキーはGitHub Actions Secret `GEMINI_API_KEY`、`store: false` を指定する。デフォルトモデルは `gemini-3.8-flash` とし、Repository Variable `GEMINI_MODEL` で変更できるようにする。
+  - レビュー結果はPRコメントとして表示する(`VERDICT: NO_ISSUES` / `VERDICT: ISSUES_FOUND`)。同じPRの再レビューでは既存コメントを更新する。
+  - GeminiはPRのApprove・Mergeを行わない。最終判断は開発者が行う。
+  - Geminiが `ISSUES_FOUND` を返してもworkflowは失敗にしない。Secret未設定・API失敗・レスポンス解析失敗・コメント投稿失敗はworkflowの失敗とする(HTTP 429 / 500 / 503は20秒後・60秒後に再試行する)。
+  - workflowの権限は `contents: read` / `issues: read` / `pull-requests: write` とし、`contents: write` は付与しない。
+- **判断理由:**
+  - CI①(Decision 013)が「プロジェクトが起動・読み込みできるか」を確認するのに対し、CI②には「PRの変更内容を別のAIにレビューしてもらう」役割を持たせるため。
+  - 実装担当のAI(Claude Code)とは別のAIによるレビューを入れ、見落としを減らすため(Decision 006の役割分担)。
+  - MVPの開発フロー(Issue → ブランチ → PR → レビュー → 開発者のMerge判断)に、AIレビューを自動で組み込むため。
+  - **Interactions APIを採用した理由:** 実装時(2026-10)に公式ドキュメントを確認したところ、Interactions APIは2026年6月にGAとなり新規プロジェクトに推奨されており、従来の `generateContent` はlegacy扱い(引き続きサポートはされる)だったため。PR #13の実際のGitHub Actions上で、このAPIによるレビュー生成とPRコメント投稿が正常に動作することを確認している。
+  - **PRコメント方式を採用した理由:**
+    - レビュー結果をPR上で確認しやすい。
+    - GitHubのPR Review(Approve / Request changes)とは分離でき、通常のレビュー作業と混ざらない。
+    - Approve・Merge権限をGeminiに与えず、最終判断を人間に残せる。
+    - 再レビュー時は既存コメントを更新するため、PRがコメントで埋まらない。
+  - **fork PRを対象外とした理由:** Gemini APIキーというSecretを扱うため、fork PRの信頼できないコードをSecret付きのworkflowで実行する構成(`pull_request_target` 等)を避ける。
+  - **Geminiの指摘と人間による検証:** PR #13でGeminiレビューを実際に動かしたところ、複数の指摘が出たが、その中には実際の実装・実動確認・公式ドキュメントと一致しない指摘も含まれていた。この経験から、**AIレビューの結果は判断材料であり、最終的な採否は人間が根拠を確認して決定する**という運用方針を明確にする。これはGeminiを否定する判断ではなく、AIレビューを「独立した追加レビュー」として利用し、人間による検証を最終ゲートとするための判断である。
+- **採用しなかった選択肢:**
+  - Geminiの判断による自動Approve(最終判断を人間に残すため)。
+  - 自動Merge(同上。全プロジェクト共通のルールでも禁止している)。
+  - Geminiの指摘(`ISSUES_FOUND`)だけでworkflowを失敗させる方式(誤った指摘でもPRがブロックされるため。指摘の採否は人間が判断する)。
+  - fork PRに対してSecret付きで実行する方式(`pull_request_target` 等。Secret漏洩のリスクがあるため)。
+  - 行単位のインラインレビュー(PR Review API)を今回の段階で導入すること(MVP開発中であり、PRコメント1件で十分なため)。
+  - Gemini Code Assist(GitHub App / Developer Connect)を使う方式(Issue #12で、GitHub Actions + Gemini APIの方式に決めたため)。
+- **判断に影響した条件:**
+  - 個人のPublic GitHubリポジトリであること。
+  - 1週間程度の小規模MVPであること。
+  - AIを実装・レビューに活用する開発方針であること(Decision 006)。
+  - 最終判断は開発者本人が行うこと。
+  - Secret(Gemini APIキー)を安全に扱う必要があること。
+  - CI①(Decision 013)をすでに導入済みであること。
+- **再検討条件:**
+  - Private repositoryでの運用が必要になった場合(無料枠では送信内容が製品改善に使われるため、利用プランを含めて再検討する)。
+  - 機密情報を扱うプロジェクトになった場合。
+  - 行単位のインラインレビューが必要になった場合。
+  - Geminiレビューを必須チェック(ブランチ保護)として扱う必要が出た場合。
+  - Gemini APIやモデルの仕様が変更された場合(モデルの廃止、Interactions APIの変更等)。
+  - レビューのコスト・実行時間、Gemini側の混雑による失敗が問題になった場合。
