@@ -2,7 +2,7 @@
 
 このファイルは、このプロジェクトにおける**仕様の正(Single Source of Truth)**である。仕様・状態が変わったら、このファイルを更新する。判断の理由は[decisions.md](./decisions.md)に記録する。
 
-最終更新: 2026-10-02(CI②「GeminiによるPR自動レビュー」完了時)
+最終更新: 2026-10-03(Day 3「制限時間タイマー・残り時間UI」完了時)
 
 ---
 
@@ -70,7 +70,7 @@
 
 ## 8. 制限時間
 
-- 約3分(Decision 005)。
+- 180秒(3分)(Decision 005・015)。
 - ゲーム開始と同時にカウントダウンを始める。
 - 時間切れでゲームオーバーになる。
 
@@ -151,16 +151,23 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
 
 ## 18. 現在の開発状況
 
-- **フェーズ:** MVP開発中(Day 2「アイテム配置・取得機能」、CI①「GitHub Actionsによるスモークテスト」およびCI②「GeminiによるPR自動レビュー」まで完了)
+- **フェーズ:** MVP開発中(Day 3「制限時間タイマー・残り時間UI」、CI①「GitHub Actionsによるスモークテスト」およびCI②「GeminiによるPR自動レビュー」まで完了)
 - **実装済み:**
   - Godotプロジェクトの初期設定(Issue #1 / PR #2)
   - プレイヤー表示、4方向移動、壁との衝突判定(Day 1。Issue #3 / PR #4)
   - 鍵・カルテ・懐中電灯の配置、アイテム取得、取得済みアイテムの消去、アイテム取得状態の管理(Day 2。Issue #5 / PR #6)
   - GitHub Actionsによるスモークテスト(CI①。Issue #8 / PR #9)
   - GeminiによるPR自動レビュー(CI②。Issue #12 / PR #13)
+  - 制限時間タイマー(180秒)、残り時間UI(Day 3。Issue #16 / PR #17)
 - **現在の状態管理:**
   - `GameManager`(`scripts/game_manager.gd`)をAutoloadとして登録している(Decision 012)。
-  - 現在管理しているのは `has_key` / `has_chart` / `has_flashlight` の3つだけ。アイテム取得時に `collect_item(item_type)` で更新する。
+  - 現在管理しているのは `has_key` / `has_chart` / `has_flashlight` の3つだけ。アイテム取得時に `collect_item(item_type)` で更新する。タイマーは扱わない。
+- **制限時間タイマー・残り時間UI:**(Decision 015)
+  - 制限時間は `Main` 直下の `Time` ノード(Godot標準の `Timer`。`wait_time = 180`、`one_shot = true`、`autostart = true`)で管理する。Autoloadではない。スクリプトは付けていない。
+  - ゲーム開始と同時に180秒からカウントダウンし、0秒で停止する(マイナスにはならない)。0秒になると `timeout` シグナルで時間切れを通知する。現時点では、この通知を受けて動く処理はない(時間切れ後もプレイヤーは操作できる)。
+  - 残り時間は `UI`(CanvasLayer)> `TimeLabel`(Label)+ `scripts/time_label.gd` が表示する。毎フレーム `Time` の `time_left` を読み、画面左上に `TIME MM:SS`(分・秒とも2桁の0埋め)で固定表示する。
+  - 秒の端数は切り上げて表示する。`TIME 00:00` になるのは、実際に0秒になったときだけ。
+  - 表示は白文字+黒縁のみで、残り時間による色の変化・点滅などの演出はない。
 - **CI(自動テスト):**(Decision 013)
   - `.github/workflows/ci.yml` で、`pull_request`(main向け)と `push`(main)のときに実行する。同一workflow・同一refの古い実行はキャンセルする。
   - 実行環境はUbuntu 24.04。Godot 4.7.2 stable official(Linux版)を公式ビルド配布元から取得し、SHA512を検証してから使う。
@@ -181,8 +188,6 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - GeminiはPRのApprove・Mergeを行わない。workflowの権限は `contents: read` / `issues: read` / `pull-requests: write` だけ。
   - **Geminiレビューは判断材料であり、指摘をそのまま事実として扱わない。** 開発者が根拠を確認したうえで採否を判断し、修正・Mergeの最終判断も開発者が行う(PR #13では、実装・実動確認・公式ドキュメントと一致しない指摘も出た)。
 - **未実装のMVP機能:**
-  - 制限時間
-  - 残り時間UI
   - アイテム取得数UI
   - ナースステーションへの帰還によるクリア判定
   - クリア画面
