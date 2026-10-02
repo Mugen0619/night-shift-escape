@@ -18,6 +18,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -44,6 +45,10 @@ DIFF_EXCLUDES = [
 
 # レビュー時に参照させるプロジェクト文書(仕様の正・判断記録・レビュー観点)。
 CONTEXT_FILES = ["PROJECT_CONTEXT.md", "decisions.md", ".gemini/styleguide.md"]
+
+# Gemini APIが一時的なエラー(混雑・レート制限)を返したときの再試行の待ち時間(秒)。この回数だけ再試行する。
+RETRY_DELAYS = [20, 60]
+RETRYABLE_STATUS = {429, 500, 503}
 
 # Geminiの出力の1行目。これがない応答は解析失敗として扱う。
 VERDICT_PATTERN = re.compile(r"^VERDICT:\s*(NO_ISSUES|ISSUES_FOUND)\s*$", re.MULTILINE)
@@ -88,6 +93,11 @@ Severityは Critical / High / Medium / Low のいずれか。行はdiffの新し
 class ReviewError(Exception):
     """レビューを失敗として扱うエラー。メッセージはログにそのまま出すので、Secretを含めないこと。"""
 
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        # HTTPエラーのステータスコード(HTTP以外のエラーではNone)。再試行するかの判断に使う。
+        self.status = status
+
 
 def require_env(name: str) -> str:
     value = os.environ.get(name, "")
@@ -105,7 +115,7 @@ def http_json(url: str, method: str, headers: dict, body: dict | None = None, ti
     except urllib.error.HTTPError as e:
         # エラー本文(APIのエラーメッセージ)は出すが、リクエストヘッダー(APIキー)は出さない。
         detail = e.read().decode("utf-8", errors="replace")[:2000]
-        raise ReviewError(f"{method} {url} が失敗しました: HTTP {e.code}\n{detail}") from None
+        raise ReviewError(f"{method} {url} が失敗しました: HTTP {e.code}\n{detail}", status=e.code) from None
     except urllib.error.URLError as e:
         raise ReviewError(f"{method} {url} に接続できませんでした: {e.reason}") from None
     except json.JSONDecodeError as e:
@@ -201,7 +211,16 @@ def call_gemini(api_key: str, model: str, user_input: str) -> tuple[str, dict]:
         "store": False,
     }
     headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
-    response = http_json(GEMINI_ENDPOINT, "POST", headers, body, timeout=300)
+    for attempt, delay in enumerate([*RETRY_DELAYS, None], start=1):
+        try:
+            response = http_json(GEMINI_ENDPOINT, "POST", headers, body, timeout=300)
+            break
+        except ReviewError as e:
+            # 認証エラー(401/403)やリクエスト不正(400)は、再試行しても直らないのですぐ失敗にする。
+            if e.status not in RETRYABLE_STATUS or delay is None:
+                raise
+            print(f"Gemini APIが一時的なエラーを返しました(HTTP {e.status}、{attempt}回目)。{delay}秒後に再試行します。")
+            time.sleep(delay)
 
     status = response.get("status")
     if status != "completed":
