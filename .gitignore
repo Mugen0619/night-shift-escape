@@ -9,3 +9,6 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Pythonのキャッシュ(.github/scripts のレビュー用スクリプト実行時に生成される)
+__pycache__/
