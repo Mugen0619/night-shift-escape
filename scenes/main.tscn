@@ -3,6 +3,8 @@
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="1_player"]
 [ext_resource type="PackedScene" path="res://scenes/item.tscn" id="2_item"]
 [ext_resource type="Script" path="res://scripts/time_label.gd" id="3_time_label"]
+[ext_resource type="Script" path="res://scripts/nurse_station.gd" id="4_nurse_station"]
+[ext_resource type="Script" path="res://scripts/item_count_label.gd" id="5_item_count_label"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
 size = Vector2(1152, 32)
@@ -15,6 +17,9 @@ size = Vector2(32, 300)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_inner_horizontal"]
 size = Vector2(300, 32)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_nurse_station"]
+size = Vector2(256, 160)
 
 [node name="Main" type="Node2D"]
 
@@ -98,6 +103,21 @@ offset_right = 150.0
 offset_bottom = 16.0
 color = Color(0.5, 0.5, 0.5, 1)
 
+[node name="NurseStation" type="Area2D" parent="." node_paths=PackedStringArray("time")]
+position = Vector2(200, 324)
+script = ExtResource("4_nurse_station")
+time = NodePath("../Time")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="NurseStation"]
+shape = SubResource("RectangleShape2D_nurse_station")
+
+[node name="ColorRect" type="ColorRect" parent="NurseStation"]
+offset_left = -128.0
+offset_top = -80.0
+offset_right = 128.0
+offset_bottom = 80.0
+color = Color(0.3, 0.8, 0.5, 0.25)
+
 [node name="Items" type="Node2D" parent="."]
 
 [node name="Key" parent="Items" instance=ExtResource("2_item")]
@@ -133,3 +153,14 @@ theme_override_font_sizes/font_size = 24
 text = "TIME 03:00"
 script = ExtResource("3_time_label")
 time = NodePath("../../Time")
+
+[node name="ItemCountLabel" type="Label" parent="UI"]
+offset_left = 180.0
+offset_right = 380.0
+offset_bottom = 34.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 24
+text = "ITEM 0/3"
+script = ExtResource("5_item_count_label")
