@@ -2,7 +2,7 @@
 
 このファイルは、このプロジェクトにおける**仕様の正(Single Source of Truth)**である。仕様・状態が変わったら、このファイルを更新する。判断の理由は[decisions.md](./decisions.md)に記録する。
 
-最終更新: 2026-10-03(Day 3「制限時間タイマー・残り時間UI」完了時)
+最終更新: 2026-10-03(Day 4「アイテム取得数UI・クリア条件判定」完了時)
 
 ---
 
@@ -151,7 +151,7 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
 
 ## 18. 現在の開発状況
 
-- **フェーズ:** MVP開発中(Day 3「制限時間タイマー・残り時間UI」、CI①「GitHub Actionsによるスモークテスト」およびCI②「GeminiによるPR自動レビュー」まで完了)
+- **フェーズ:** MVP開発中(Day 4「アイテム取得数UI・クリア条件判定」、CI①「GitHub Actionsによるスモークテスト」およびCI②「GeminiによるPR自動レビュー」まで完了)
 - **実装済み:**
   - Godotプロジェクトの初期設定(Issue #1 / PR #2)
   - プレイヤー表示、4方向移動、壁との衝突判定(Day 1。Issue #3 / PR #4)
@@ -159,15 +159,32 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - GitHub Actionsによるスモークテスト(CI①。Issue #8 / PR #9)
   - GeminiによるPR自動レビュー(CI②。Issue #12 / PR #13)
   - 制限時間タイマー(180秒)、残り時間UI(Day 3。Issue #16 / PR #17)
+  - アイテム取得数UI、ナースステーションへの帰還によるクリア条件判定(Day 4。Issue #20 / PR #21)
 - **現在の状態管理:**
   - `GameManager`(`scripts/game_manager.gd`)をAutoloadとして登録している(Decision 012)。
   - 現在管理しているのは `has_key` / `has_chart` / `has_flashlight` の3つだけ。アイテム取得時に `collect_item(item_type)` で更新する。タイマーは扱わない。
+  - Day 4 で `get_collected_count()` を追加した。3つの取得状態から取得数(0〜3)を計算して返すだけで、取得数を新しい状態として保存しない(Decision 016)。
+  - クリア状態は GameManager に持たせない。
 - **制限時間タイマー・残り時間UI:**(Decision 015)
   - 制限時間は `Main` 直下の `Time` ノード(Godot標準の `Timer`。`wait_time = 180`、`one_shot = true`、`autostart = true`)で管理する。Autoloadではない。スクリプトは付けていない。
   - ゲーム開始と同時に180秒からカウントダウンし、0秒で停止する(マイナスにはならない)。0秒になると `timeout` シグナルで時間切れを通知する。現時点では、この通知を受けて動く処理はない(時間切れ後もプレイヤーは操作できる)。
   - 残り時間は `UI`(CanvasLayer)> `TimeLabel`(Label)+ `scripts/time_label.gd` が表示する。毎フレーム `Time` の `time_left` を読み、画面左上に `TIME MM:SS`(分・秒とも2桁の0埋め)で固定表示する。
   - 秒の端数は切り上げて表示する。`TIME 00:00` になるのは、実際に0秒になったときだけ。
   - 表示は白文字+黒縁のみで、残り時間による色の変化・点滅などの演出はない。
+- **アイテム取得数UI:**(Decision 016)
+  - `UI`(CanvasLayer)> `ItemCountLabel`(Label)+ `scripts/item_count_label.gd` が表示する。
+  - TimeLabel の右隣に `ITEM 0/3`〜`ITEM 3/3` を固定表示する。見た目は TimeLabel と同じ(白文字+黒縁、24px)。
+  - 毎フレーム `GameManager.get_collected_count()` を読んで表示する。
+- **ナースステーション・クリア条件判定:**(Decision 016)
+  - `Main` 直下の Area2D `NurseStation` + `scripts/nurse_station.gd`。スタート地点 (200, 324) を中心に 256×160。半透明の四角で表示する。
+  - NurseStation は、プレイヤーが入ったこと、アイテムを3つ取得済みか、制限時間内か、を確認して、クリア条件の成立を通知する。
+  - クリア条件:3つのアイテムをすべて取得済み **かつ** `Time.time_left > 0` **かつ** ナースステーションに入る。`Time` の値は読むだけ(`@export var time: Timer` で参照する)。
+  - 判定は `body_entered`(入った瞬間)のときだけ行う。毎フレームの判定はしない。
+    - ゲーム開始時は、プレイヤーがすでにナースステーションの中にいる。開始直後に「入った」として1回判定されるが、取得数は0なので成立しない。
+    - ナースステーションの中にいる間に3個目を取得しても、その時点では判定しない。
+    - 一度外に出て、もう一度入ったときに判定する。
+  - 条件が成立したら、`clear_condition_met` シグナルを1回だけ発行し、コンソールに `クリア条件成立` を1回だけ出力する。もう一度入っても再発行しない。
+  - Day 4 時点では、このシグナルを受けて動く処理はない。成立後もクリア画面への遷移・ゲームオーバー画面・リスタートはなく、プレイヤー操作とタイマーはそのまま動き続ける。
 - **CI(自動テスト):**(Decision 013)
   - `.github/workflows/ci.yml` で、`pull_request`(main向け)と `push`(main)のときに実行する。同一workflow・同一refの古い実行はキャンセルする。
   - 実行環境はUbuntu 24.04。Godot 4.7.2 stable official(Linux版)を公式ビルド配布元から取得し、SHA512を検証してから使う。
@@ -188,8 +205,6 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - GeminiはPRのApprove・Mergeを行わない。workflowの権限は `contents: read` / `issues: read` / `pull-requests: write` だけ。
   - **Geminiレビューは判断材料であり、指摘をそのまま事実として扱わない。** 開発者が根拠を確認したうえで採否を判断し、修正・Mergeの最終判断も開発者が行う(PR #13では、実装・実動確認・公式ドキュメントと一致しない指摘も出た)。
 - **未実装のMVP機能:**
-  - アイテム取得数UI
-  - ナースステーションへの帰還によるクリア判定
   - クリア画面
   - ゲームオーバー
   - リスタート
