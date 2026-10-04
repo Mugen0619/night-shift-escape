@@ -2,7 +2,7 @@
 
 このファイルは、このプロジェクトにおける**仕様の正(Single Source of Truth)**である。仕様・状態が変わったら、このファイルを更新する。判断の理由は[decisions.md](./decisions.md)に記録する。
 
-最終更新: 2026-10-03(Day 4「アイテム取得数UI・クリア条件判定」完了時)
+最終更新: 2026-10-05(Day 5「クリア・ゲームオーバー・リスタート」完了時)
 
 ---
 
@@ -151,7 +151,7 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
 
 ## 18. 現在の開発状況
 
-- **フェーズ:** MVP開発中(Day 4「アイテム取得数UI・クリア条件判定」、CI①「GitHub Actionsによるスモークテスト」およびCI②「GeminiによるPR自動レビュー」まで完了)
+- **フェーズ:** MVPの機能を実装済み(Day 5「クリア・ゲームオーバー・リスタート」、CI①「GitHub Actionsによるスモークテスト」およびCI②「GeminiによるPR自動レビュー」まで完了)
 - **実装済み:**
   - Godotプロジェクトの初期設定(Issue #1 / PR #2)
   - プレイヤー表示、4方向移動、壁との衝突判定(Day 1。Issue #3 / PR #4)
@@ -160,14 +160,17 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - GeminiによるPR自動レビュー(CI②。Issue #12 / PR #13)
   - 制限時間タイマー(180秒)、残り時間UI(Day 3。Issue #16 / PR #17)
   - アイテム取得数UI、ナースステーションへの帰還によるクリア条件判定(Day 4。Issue #20 / PR #21)
+  - ゲーム進行状態の管理(GameFlow)、クリア画面、ゲームオーバー画面、リスタート(Day 5。Issue #24 / PR #25)
 - **現在の状態管理:**
   - `GameManager`(`scripts/game_manager.gd`)をAutoloadとして登録している(Decision 012)。
   - 現在管理しているのは `has_key` / `has_chart` / `has_flashlight` の3つだけ。アイテム取得時に `collect_item(item_type)` で更新する。タイマーは扱わない。
   - Day 4 で `get_collected_count()` を追加した。3つの取得状態から取得数(0〜3)を計算して返すだけで、取得数を新しい状態として保存しない(Decision 016)。
   - クリア状態は GameManager に持たせない。
+  - Day 5 で、リスタート用に `reset_items()` を追加した。3つのアイテム取得状態を初期状態(すべて false)に戻すだけ(Decision 017)。
+  - ゲーム全体の進行状態(`PLAYING` / `CLEARED` / `GAME_OVER`)は GameManager ではなく、GameFlow が管理する(Decision 017)。
 - **制限時間タイマー・残り時間UI:**(Decision 015)
   - 制限時間は `Main` 直下の `Time` ノード(Godot標準の `Timer`。`wait_time = 180`、`one_shot = true`、`autostart = true`)で管理する。Autoloadではない。スクリプトは付けていない。
-  - ゲーム開始と同時に180秒からカウントダウンし、0秒で停止する(マイナスにはならない)。0秒になると `timeout` シグナルで時間切れを通知する。現時点では、この通知を受けて動く処理はない(時間切れ後もプレイヤーは操作できる)。
+  - ゲーム開始と同時に180秒からカウントダウンし、0秒で停止する(マイナスにはならない)。0秒になると `timeout` シグナルで時間切れを通知する。Day 3・4 時点では、この通知を受けて動く処理はなかった。Day 5 からは GameFlow がこの通知を受け取り、ゲームオーバーにする(Decision 017)。
   - 残り時間は `UI`(CanvasLayer)> `TimeLabel`(Label)+ `scripts/time_label.gd` が表示する。毎フレーム `Time` の `time_left` を読み、画面左上に `TIME MM:SS`(分・秒とも2桁の0埋め)で固定表示する。
   - 秒の端数は切り上げて表示する。`TIME 00:00` になるのは、実際に0秒になったときだけ。
   - 表示は白文字+黒縁のみで、残り時間による色の変化・点滅などの演出はない。
@@ -184,7 +187,38 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
     - ナースステーションの中にいる間に3個目を取得しても、その時点では判定しない。
     - 一度外に出て、もう一度入ったときに判定する。
   - 条件が成立したら、`clear_condition_met` シグナルを1回だけ発行し、コンソールに `クリア条件成立` を1回だけ出力する。もう一度入っても再発行しない。
-  - Day 4 時点では、このシグナルを受けて動く処理はない。成立後もクリア画面への遷移・ゲームオーバー画面・リスタートはなく、プレイヤー操作とタイマーはそのまま動き続ける。
+  - Day 4 時点では、このシグナルを受けて動く処理はない。成立後もクリア画面への遷移・ゲームオーバー画面・リスタートはなく、プレイヤー操作とタイマーはそのまま動き続ける。Day 5 からは GameFlow がこのシグナルを受け取り、クリアにする(Decision 017)。NurseStation 自身はクリア状態を管理しない。
+- **ゲーム進行状態(GameFlow)・クリア・ゲームオーバー・リスタート:**(Decision 017)
+  - `Main` の子 Node `GameFlow` + `scripts/game_flow.gd`。Autoloadではない。ゲーム全体の進行状態を `PLAYING` / `CLEARED` / `GAME_OVER` の3つで管理し、クリア・ゲームオーバー・リスタートと終了画面の表示を担当する。
+  - 責務の分担:
+    | 担当 | 責務 |
+    |---|---|
+    | `GameManager` | 3つのアイテムの取得状態だけを管理する。`reset_items()` を提供する。ゲーム全体の状態は管理しない |
+    | `Time` | Godot標準の `Timer`。制限時間を管理し、`timeout` で時間切れを通知する |
+    | `TimeLabel` | 残り時間を表示する |
+    | `ItemCountLabel` | アイテム取得数を表示する |
+    | `NurseStation` | クリア条件を判定し、`clear_condition_met` を通知する。クリア状態そのものは管理しない |
+    | `Player` | 移動を担当する。ゲームの終了状態は管理しない |
+    | `GameFlow` | ゲーム全体の状態遷移、クリア、ゲームオーバー、リスタート、終了画面の表示 |
+  - **クリア:** `NurseStation.clear_condition_met` を GameFlow が受け取る。状態が `PLAYING` のときだけ `PLAYING → CLEARED` に移り、次を行う。
+    - Player の物理処理を止める(`set_physics_process(false)`)。
+    - `Time.paused = true` で Timer を一時停止する。`Time.stop()` は使わない(`stop()` だと `time_left` が 0 になり `TIME 00:00` と表示されるため)。クリアした時点の残り時間の表示を保持する。
+    - Clear 画面を表示し、RESTART ボタンにフォーカスを当てる。
+  - **ゲームオーバー:** `Time.timeout` を GameFlow が受け取る。状態が `PLAYING` のときだけ `PLAYING → GAME_OVER` に移り、次を行う。
+    - Player の物理処理を止める(`set_physics_process(false)`)。
+    - Game Over 画面を表示し、RESTART ボタンにフォーカスを当てる。
+    - Timer は `one_shot = true` のため、`timeout` のあとに再び動くことはない。
+  - **終了状態の重複防止:** クリア・ゲームオーバーの処理の最初に現在の状態を確認し、`PLAYING` 以外なら遷移しない。これにより `CLEARED → GAME_OVER`、`GAME_OVER → CLEARED` のような二重の遷移を防ぎ、最初に成立した終了状態を維持する。
+  - **終了画面:** `UI`(CanvasLayer)の下に `ClearScreen` / `GameOverScreen`(半透明の黒い背景(ColorRect)+ 文字 + `RESTART` ボタン)を置く。通常は非表示。
+    - Clear 画面:`CLEAR` / `夜勤脱出成功!` / `RESTART`
+    - Game Over 画面:`GAME OVER` / `時間切れ` / `RESTART`
+    - アニメーション・フェードなどの演出はない。
+  - **リスタート:** RESTART ボタンを押すと、`GameManager.reset_items()` → `get_tree().reload_current_scene()` の順に行う。
+    - Input Map は追加していない。Godot 標準の Button の操作(`ui_accept`)により、マウスクリック・Enter・Space で押せる。
+    - Main シーンが初期状態から作り直され、`ITEM 0/3`、`TIME 03:00`、Player が初期位置、`PLAYING`、Clear / Game Over 画面は非表示、アイテム3つが再配置された状態になる。
+- **既知の改善候補(MVPでは修正しない):**
+  - **終了画面の背景:** Clear / Game Over 画面は半透明の黒いオーバーレイを使っているため、背後の `TIME` / `ITEM` の表示も暗く見える。終了画面としての読みやすさ・操作性は確保されているため、MVPでは修正しない。将来の UI 改善候補とする。
+  - **ブラウザ向けの日本語フォント:** 現在の Windows 環境では日本語の表示を確認済み。ブラウザ向け書き出し(Web export)時の日本語フォントの表示は未検証。Web公開を行う段階で、必要に応じて検証・対応する。
 - **CI(自動テスト):**(Decision 013)
   - `.github/workflows/ci.yml` で、`pull_request`(main向け)と `push`(main)のときに実行する。同一workflow・同一refの古い実行はキャンセルする。
   - 実行環境はUbuntu 24.04。Godot 4.7.2 stable official(Linux版)を公式ビルド配布元から取得し、SHA512を検証してから使う。
@@ -204,10 +238,8 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - Geminiが `ISSUES_FOUND` を返しても、workflow自体は失敗にしない。
   - GeminiはPRのApprove・Mergeを行わない。workflowの権限は `contents: read` / `issues: read` / `pull-requests: write` だけ。
   - **Geminiレビューは判断材料であり、指摘をそのまま事実として扱わない。** 開発者が根拠を確認したうえで採否を判断し、修正・Mergeの最終判断も開発者が行う(PR #13では、実装・実動確認・公式ドキュメントと一致しない指摘も出た)。
-- **未実装のMVP機能:**
-  - クリア画面
-  - ゲームオーバー
-  - リスタート
+- **未実装のMVP機能:** なし(Day 1〜5 で、MVPの機能はすべて実装済み)。
+  - 実装済みのMVP機能:プレイヤー移動、壁との衝突、アイテムの配置・取得、アイテム数表示、3分タイマー、クリア条件判定、クリア画面、ゲームオーバー、リスタート。
 - **確定した事項:**
   - Godotのバージョン:4.7.2 標準版(Decision 010)。
   - スクリプト言語:GDScript(Decision 010)。
