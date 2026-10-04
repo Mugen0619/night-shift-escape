@@ -25,3 +25,11 @@ func collect_item(item_type: String) -> void:
 # 数は保存せず、3つの状態から毎回数える(状態の持ち方を増やさないため)。
 func get_collected_count() -> int:
 	return int(has_key) + int(has_chart) + int(has_flashlight)
+
+
+# 3つのアイテム取得状態を初期状態(未取得)に戻す。リスタート時に使う。
+# GameManager は Autoload でシーンを読み込み直しても残るため、明示的に戻す必要がある。
+func reset_items() -> void:
+	has_key = false
+	has_chart = false
+	has_flashlight = false

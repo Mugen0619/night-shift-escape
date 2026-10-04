@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/time_label.gd" id="3_time_label"]
 [ext_resource type="Script" path="res://scripts/nurse_station.gd" id="4_nurse_station"]
 [ext_resource type="Script" path="res://scripts/item_count_label.gd" id="5_item_count_label"]
+[ext_resource type="Script" path="res://scripts/game_flow.gd" id="6_game_flow"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
 size = Vector2(1152, 32)
@@ -164,3 +165,89 @@ theme_override_constants/outline_size = 6
 theme_override_font_sizes/font_size = 24
 text = "ITEM 0/3"
 script = ExtResource("5_item_count_label")
+
+[node name="ClearScreen" type="ColorRect" parent="UI"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="CenterContainer" type="CenterContainer" parent="UI/ClearScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/ClearScreen/CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="TitleLabel" type="Label" parent="UI/ClearScreen/CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 56
+text = "CLEAR"
+horizontal_alignment = 1
+
+[node name="MessageLabel" type="Label" parent="UI/ClearScreen/CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "夜勤脱出成功!"
+horizontal_alignment = 1
+
+[node name="RestartButton" type="Button" parent="UI/ClearScreen/CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "RESTART"
+
+[node name="GameOverScreen" type="ColorRect" parent="UI"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="CenterContainer" type="CenterContainer" parent="UI/GameOverScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/GameOverScreen/CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="TitleLabel" type="Label" parent="UI/GameOverScreen/CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 56
+text = "GAME OVER"
+horizontal_alignment = 1
+
+[node name="MessageLabel" type="Label" parent="UI/GameOverScreen/CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "時間切れ"
+horizontal_alignment = 1
+
+[node name="RestartButton" type="Button" parent="UI/GameOverScreen/CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "RESTART"
+
+[node name="GameFlow" type="Node" parent="." node_paths=PackedStringArray("player", "time", "nurse_station", "clear_screen", "clear_restart_button", "game_over_screen", "game_over_restart_button")]
+script = ExtResource("6_game_flow")
+player = NodePath("../Player")
+time = NodePath("../Time")
+nurse_station = NodePath("../NurseStation")
+clear_screen = NodePath("../UI/ClearScreen")
+clear_restart_button = NodePath("../UI/ClearScreen/CenterContainer/VBoxContainer/RestartButton")
+game_over_screen = NodePath("../UI/GameOverScreen")
+game_over_restart_button = NodePath("../UI/GameOverScreen/CenterContainer/VBoxContainer/RestartButton")
