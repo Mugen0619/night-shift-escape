@@ -73,10 +73,10 @@ jobs:
       # Secretが未設定なら、ブランチを作る前に止める。値はログに出さない。
       - name: Check Claude credential
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::error::Repository Secret ANTHROPIC_API_KEY が設定されていません。Claude Code を実行できません。"
+          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "::error::Repository Secret CLAUDE_CODE_OAUTH_TOKEN が設定されていません。Claude Code を実行できません。"
             exit 1
           fi
 
@@ -120,7 +120,8 @@ jobs:
       - name: Run Claude Code
         uses: anthropics/claude-code-action@cab360f6565aa35a51d6ce9e43f1f4287c0a32ea # v1.0.241 (v1)
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Claude Pro 契約の OAuth Token(`claude setup-token` で生成)で認証する。API の従量課金は使わない。
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # 公式の Claude GitHub App を使わず、このジョブの短命な GITHUB_TOKEN(contents: write のみ)で動かす。
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
