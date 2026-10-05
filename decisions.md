@@ -370,3 +370,65 @@
   - タイトル画面やステージ遷移など、Main 以外のシーンをまたぐゲーム進行が必要になった場合。
   - ゲーム進行状態を大きく拡張する場合。
   - リスタートで、シーンの読み込み直しでは初期化できない状態(Autoload の新しい状態など)が増えた場合。
+
+## Decision 018: CI③としてClaude CodeによるIssue→実装→PR作成の自動化を導入する
+
+- **日付:** 2026-10-05
+- **状態:** 採用
+- **判断内容:**
+  - CI③(Issue #28 / PR #29)として、`.github/workflows/claude-issue-implement.yml` と `.github/scripts/claude_issue_automation.py` を導入する。CI①・CI②は置き換えない。
+  - Issue に `claude-ready` ラベルが付いたとき(`issues: labeled`)だけ実行する。`claude-ready` は、内容を確認した開発者が付ける「実装開始の明示的な GO」とし、Issue の作成だけでは動かさない。
+  - `guard` ジョブで、ラベル・Issue であること・Issue が open・ラベルを付けた人が書き込み権限を持つ人間であること・同じ Issue の open PR や `claude/issue-<N>` ブランチがないこと、を確認してから実行する。
+  - `implement` ジョブで、workflow が `main` から `claude/issue-<N>` を作り、`anthropics/claude-code-action`(v1、agent mode)が実装・テスト・commit する。Claude Code に許可するツールは、ファイルの読み書き・`git status/diff/log/add/commit`・スモークテスト・`godot` に限定し、push・Web アクセスは許可しない。
+  - push は Claude Code ではなく workflow が行う。作業ブランチ・未 commit の変更・commit の有無・`.github/` 配下の変更を確認してから、`claude/issue-<N>` にだけ push する(強制 push はしない)。
+  - `create-pr` ジョブで、GitHub App `night-shift-escape-pr-creator` の Installation Access Token(`actions/create-github-app-token` v3、`client-id` 方式)を使って PR を作成する。base `main`、Draft ではない、本文に `Closes #<N>`。
+  - workflow 全体の権限は `{}` とし、ジョブごとに必要な分だけ付ける。アクションはコミット SHA で固定する。
+  - 自動 Merge はしない。失敗しても、作成済みのブランチは削除しない。
+- **判断理由:**
+  - ChatGPT で確定した Issue の内容を Claude Code へ手動でコピーする手間を減らすため。
+  - 実装開始の判断を開発者に残すため、Issue の作成ではなく、明示的なラベルの付与を起動条件にする。
+  - Public リポジトリのため、Issue 本文を信頼できる命令として扱わず、書き込み権限・ツールの制限・push 前の確認など、プロンプト以外の仕組みでも逸脱を防ぐため。
+  - `git push` の許可は書き方の都合で `main` への push を防ぎきれないため、push は workflow 側で確認してから行う。
+  - `GITHUB_TOKEN` で作成した PR では後続の `pull_request` workflow(CI①・CI②)が承認待ちになり、自動で実行されないため、PR の作成には GitHub App のトークンを使う。App の権限は PR の作成に必要な最小限(Contents: Read-only、Pull requests: Read & write、Metadata: Read-only)にする。
+  - 二重実行で既存の作業を壊さないよう、既存のブランチ・open PR があれば実行しない(安全側に倒す)。
+- **採用しなかった選択肢:**(いずれも Issue #28 / PR #29 で検討したもの)
+  - Issue の作成時に自動で起動する方式(実装開始を開発者が明示的に判断するため)。
+  - Claude Code 自身に `git push` させる方式(`main` への push を確実に防げないため)。
+  - Claude Code 側で PR を作成する方式(PR の作成は後段の処理に分け、Claude Code に PR 作成の権限・目的を持たせない)。
+  - `GITHUB_TOKEN` で PR を作成する方式(CI①・CI② が承認待ちになるため)。
+  - Personal Access Token(PAT)で PR を作成する方式(有効期間の長い秘密情報になるため。Issue #28 で不採用と決定)。
+  - 公式の Claude GitHub App で Claude Code を動かす方式(ジョブの短命な `GITHUB_TOKEN`(`contents: write` のみ)で足りるため)。
+  - 自動 Merge(最終判断を開発者に残すため。全プロジェクト共通のルールでも禁止している)。
+- **判断に影響した条件:**
+  - 個人の Public GitHub リポジトリであること。
+  - AI を実装・レビューに活用する開発方針であること(Decision 006)。
+  - CI①(Decision 013)・CI②(Decision 014)をすでに導入済みであること。
+  - CI③ 自身の workflow は `main` に入るまで起動できないため、最初の導入は従来の手動フローで行う必要があったこと。
+- **再検討条件:**
+  - Claude Code の実行結果(スモークテストの成否、拒否されたツールの使用など)をログから確認できる仕組みが必要になった場合。
+  - `main` にブランチ保護・ルールセットを設定する場合。
+  - Claude Code Action・`actions/create-github-app-token` の仕様が変わった場合。
+  - 複数の Issue を並行して自動実装する運用が必要になった場合。
+  - 誤った実装や意図しない変更が自動で作られる問題が起きた場合。
+
+## Decision 019: CI③のClaude Codeの認証をOAuth Token方式にする
+
+- **日付:** 2026-10-06
+- **状態:** 採用
+- **判断内容:**
+  - CI③ の Claude Code Action の認証に、Claude のサブスクリプションにひもづく OAuth Token(`claude_code_oauth_token` 入力、Repository Secret `CLAUDE_CODE_OAUTH_TOKEN`、`claude setup-token` で生成)を使う(Issue #30 / PR #31)。
+  - Anthropic API キー(`anthropic_api_key` / `ANTHROPIC_API_KEY`)は使わない。
+  - Secret が未設定の場合は、ブランチを作る前に workflow を止める。Token の値はログ・リポジトリに出さない。
+- **判断理由:**
+  - Anthropic API の従量課金を使わず、開発者の Claude Pro 契約の範囲で CI③ を動かすため。公式ドキュメントでは、OAuth Token で認証すると、実行は API 課金ではなくサブスクリプションを使う。
+  - OAuth Token は Pro / Max / Team / Enterprise プランで使える、Claude Code Action の公式にサポートされた認証方式であるため。
+- **採用しなかった選択肢:**
+  - Anthropic API キーを使う方式(PR #29 で最初に実装したが、API の従量課金になるため PR #31 で変更した。なお、Repository Secret `ANTHROPIC_API_KEY` は一度も登録していない)。
+  - Workload Identity Federation(静的な鍵を置かずに済むが、Claude Console の組織側の設定が必要で、API の利用になるため)。
+- **判断に影響した条件:**
+  - 開発者が Claude Pro を契約していること。
+  - 個人開発で、API の従量課金を避けたいこと。
+- **再検討条件:**
+  - OAuth Token の利用条件・Claude Code Action の認証方式が変わった場合。
+  - サブスクリプションの利用枠では CI③ の実行が足りなくなった場合。
+  - 複数のリポジトリや複数の開発者で CI③ を共有する場合(公式ドキュメントでは、共有には個人のサブスクリプションにひもづく OAuth Token ではなく API キーを推奨している)。
