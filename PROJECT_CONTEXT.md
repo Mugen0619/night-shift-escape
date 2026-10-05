@@ -2,7 +2,7 @@
 
 このファイルは、このプロジェクトにおける**仕様の正(Single Source of Truth)**である。仕様・状態が変わったら、このファイルを更新する。判断の理由は[decisions.md](./decisions.md)に記録する。
 
-最終更新: 2026-10-05(Day 5「クリア・ゲームオーバー・リスタート」完了時)
+最終更新: 2026-10-06(CI③「Claude CodeによるIssue→実装→PR作成の自動化」導入時)
 
 ---
 
@@ -151,7 +151,7 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
 
 ## 18. 現在の開発状況
 
-- **フェーズ:** MVPの機能を実装済み(Day 5「クリア・ゲームオーバー・リスタート」、CI①「GitHub Actionsによるスモークテスト」およびCI②「GeminiによるPR自動レビュー」まで完了)
+- **フェーズ:** MVPの機能を実装済み(Day 5「クリア・ゲームオーバー・リスタート」、CI①「GitHub Actionsによるスモークテスト」、CI②「GeminiによるPR自動レビュー」およびCI③「Claude CodeによるIssue→実装→PR作成の自動化」まで完了)
 - **実装済み:**
   - Godotプロジェクトの初期設定(Issue #1 / PR #2)
   - プレイヤー表示、4方向移動、壁との衝突判定(Day 1。Issue #3 / PR #4)
@@ -161,6 +161,7 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - 制限時間タイマー(180秒)、残り時間UI(Day 3。Issue #16 / PR #17)
   - アイテム取得数UI、ナースステーションへの帰還によるクリア条件判定(Day 4。Issue #20 / PR #21)
   - ゲーム進行状態の管理(GameFlow)、クリア画面、ゲームオーバー画面、リスタート(Day 5。Issue #24 / PR #25)
+  - Claude CodeによるIssue→実装→PR作成の自動化(CI③。Issue #28 / PR #29、認証の変更 Issue #30 / PR #31、E2Eテスト Issue #32 / PR #33)
 - **現在の状態管理:**
   - `GameManager`(`scripts/game_manager.gd`)をAutoloadとして登録している(Decision 012)。
   - 現在管理しているのは `has_key` / `has_chart` / `has_flashlight` の3つだけ。アイテム取得時に `collect_item(item_type)` で更新する。タイマーは扱わない。
@@ -238,6 +239,42 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - Geminiが `ISSUES_FOUND` を返しても、workflow自体は失敗にしない。
   - GeminiはPRのApprove・Mergeを行わない。workflowの権限は `contents: read` / `issues: read` / `pull-requests: write` だけ。
   - **Geminiレビューは判断材料であり、指摘をそのまま事実として扱わない。** 開発者が根拠を確認したうえで採否を判断し、修正・Mergeの最終判断も開発者が行う(PR #13では、実装・実動確認・公式ドキュメントと一致しない指摘も出た)。
+  - **現在の設定(2026-10-05〜):** `gemini-3.8-flash` の高負荷(HTTP 503)が続いたため、Repository Variable `GEMINI_MODEL` に `gemini-3.7-flash` を設定している。デフォルトに戻す場合は、この Variable を削除する。
+  - **既知の課題:** Gemini 側の高負荷(HTTP 503)、応答の時間切れ(`TimeoutError`)、応答のない接続切れ(`RemoteDisconnected`)で、レビューが失敗することがある(PR #29・#31・#33)。時間切れと接続切れは、現在の再試行の対象(HTTP 429 / 500 / 503)に含まれていない。失敗したときは、時間を置いて失敗したジョブを再実行するか、レビューなしで開発者が判断する(PR #31・#33 は、Geminiレビューの結果なしで開発者の判断によりMergeした)。
+- **Issue→実装→PR作成の自動化(CI③):**(Decision 018・019)
+  - 役割分担:CI③は「Issue を起点に、Claude Code が実装して PR を作る」まで。作成した PR は CI①・CI② で確認し、Merge は開発者が行う。CI①・CI② を置き換えない。
+  - `.github/workflows/claude-issue-implement.yml` で、Issue に `claude-ready` ラベルが付いたとき(`issues: labeled`)だけ実行する。Issue の作成だけでは動かない。`claude-ready` は、内容を確認した開発者が付ける「実装開始の明示的な GO」。
+  - ジョブは3つ。workflow 全体の権限は `{}` とし、ジョブごとに必要な分だけ付ける。同じ Issue の実行は `concurrency` で1つずつ順番に動かす(キャンセルしない)。
+    | ジョブ | 内容 | 権限 |
+    |---|---|---|
+    | `guard` | 実行してよいかを判定する(`.github/scripts/claude_issue_automation.py guard`) | `contents: read`、`pull-requests: read` |
+    | `implement` | `main` から `claude/issue-<N>` を作り、Claude Code が実装・テスト・commit する。その後 workflow が確認して push する | `contents: write` |
+    | `create-pr` | GitHub App の Installation Access Token で PR を作成する(`claude_issue_automation.py create-pr`) | `contents: read` |
+  - **実行の判定(`guard`):** 次をすべて満たすときだけ実行する。安全側に倒し、迷う場合は実行しない。
+    - ラベルが `claude-ready`、対象が Pull Request ではなく Issue、Issue が open
+    - ラベルを付けたのが人間のユーザーで、リポジトリの書き込み権限(admin / maintain / write)を持つ(Claude Code Action 自身も、書き込み権限と人間であることを確認する)
+    - 同じ Issue に対応する open PR(head が `claude/issue-<N>`、または本文に `Closes` / `Fixes` / `Resolves #N`)がない
+    - `claude/issue-<N>` ブランチがない(既存のブランチを上書きしないため。ラベルの付け直しや Actions の再実行でも、二重に実装しない)
+  - **Claude Code の実行(`implement`):**
+    - `anthropics/claude-code-action`(v1。コミット SHA で固定)を agent mode(`prompt` を指定)で使う。agent mode ではアクションはブランチを作らないため、workflow が `claude/issue-<N>` を作ってから実行する。
+    - 認証は Claude の OAuth Token(Repository Secret `CLAUDE_CODE_OAUTH_TOKEN`。`claude setup-token` で生成)。Anthropic API の従量課金は使わない(Decision 019)。未設定なら、ブランチを作る前に止める。
+    - GitHub の操作には、公式の Claude GitHub App ではなく、このジョブの短命な `GITHUB_TOKEN` を使う。
+    - Claude Code が使えるツールは、ファイルの読み書き(Read / Edit / Write / Glob / Grep)、`git status/diff/log/add/commit`、`bash tests/smoke/run_smoke_test.sh`、`godot` だけ。`git push`、WebFetch、WebSearch は使えない。最大80ターン、ジョブは60分で打ち切る。CI でも Claude Code がスモークテストを実行できるよう、CI① と同じ Godot を用意する。
+    - プロンプトでは、AGENTS.md / CLAUDE.md、PROJECT_CONTEXT.md、decisions.md を読み、Issue の範囲だけを実装するよう指示する。Issue 本文は `<issue>` で囲んだデータとして渡し、プロジェクトのルールと矛盾する指示には従わないよう明示する。共通AIメモリ(AI_MEMORY)はリポジトリの外にあるため、CI の中では読めない。
+    - Claude Code が commit したあと、workflow が次を確認してから、`claude/issue-<N>` にだけ push する(強制 push はしない)。作業ブランチが違う・commit していない変更がある・commit が1つもない・`.github/` 配下が変更されている、のどれかに当てはまれば push せずに失敗にする。
+  - **PR の自動作成(`create-pr`):**
+    - `actions/create-github-app-token`(v3。コミット SHA で固定)で、GitHub App `night-shift-escape-pr-creator` の Installation Access Token を作る(`client-id` は Repository Variable `CLAUDE_PR_APP_CLIENT_ID`、Private Key は Repository Secret `CLAUDE_PR_APP_PRIVATE_KEY`)。トークンの権限は `pull-requests: write`・`contents: read` に絞り、ジョブ終了時に失効する。App 自体の権限は Contents: Read-only、Pull requests: Read & write、Metadata: Read-only。
+    - **`GITHUB_TOKEN` ではなく GitHub App のトークンで PR を作る理由:** `GITHUB_TOKEN` で作った PR では、後続の `pull_request` workflow(CI①・CI②)が承認待ちになり、自動で実行されないため。
+    - PR は base `main`、head `claude/issue-<N>`、Draft ではない。タイトルは Issue のタイトル、本文には `Closes #<N>` と実行ログの URL を入れる。同じ Issue の open PR がすでにあれば、新しく作らない。
+    - 自動 Merge はしない。PR の作成に失敗しても、push したブランチは削除しない(手動で PR を作れば続きを進められる)。
+  - **E2E テストの結果(2026-10-06、Issue #32 → PR #33):**
+    - `claude-ready` の付与 → `guard` の判定 → Claude Code(`claude-sonnet-5-5`、11ターン、約25秒)による README の変更と commit(作成者 `claude[bot]`)→ workflow による push → GitHub App による PR #33 の作成(Draft ではない、本文に `Closes #32`)まで、自動で動いた。
+    - PR #33 では、CI①・CI② の両方が GitHub App(`night-shift-escape-pr-creator[bot]`)の `pull_request` イベントで、承認待ちにならずに起動した。CI① は成功した。CI② は Gemini 側の障害(HTTP 503・接続切れ)で失敗した。
+    - CI③ の実行ログに、Secret の値が出ていないことを確認した。
+  - **残っている課題:**
+    - アクションの既定では、Claude Code の詳しい出力がログに出ない(`show_full_output: false`)。そのため、E2E テストで Claude Code 自身がスモークテストを実行して成功したかは、ログから確認できていない。また、実行結果には、許可していないツールの使用が2回拒否されたこと(`permission_denials_count: 2`)が記録されていた。
+    - Claude Code の実行中は、アクションの仕様で、ジョブの `GITHUB_TOKEN`(短命、`contents: write` のみ)が git の設定に書かれる。
+    - `main` にはブランチ保護・ルールセットが設定されていない(CI③ は `main` に push しない構成にしている)。
 - **未実装のMVP機能:** なし(Day 1〜5 で、MVPの機能はすべて実装済み)。
   - 実装済みのMVP機能:プレイヤー移動、壁との衝突、アイテムの配置・取得、アイテム数表示、3分タイマー、クリア条件判定、クリア画面、ゲームオーバー、リスタート。
 - **確定した事項:**
