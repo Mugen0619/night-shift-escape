@@ -69,3 +69,5 @@ AIが生成したコードについても、主要な部分は開発者自身が
 |---|---|
 | [PROJECT_CONTEXT.md](./PROJECT_CONTEXT.md) | 仕様の正(ゲームの仕様・開発ルール・現在の状況) |
 | [decisions.md](./decisions.md) | 技術・設計上の判断とその理由 |
+
+CI③ E2E test: Claude Code automation verified.
