@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/nurse_station.gd" id="4_nurse_station"]
 [ext_resource type="Script" path="res://scripts/item_count_label.gd" id="5_item_count_label"]
 [ext_resource type="Script" path="res://scripts/game_flow.gd" id="6_game_flow"]
+[ext_resource type="Script" path="res://scripts/hospital_map_art.gd" id="7_map_art"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
 size = Vector2(1152, 32)
@@ -24,6 +25,9 @@ size = Vector2(256, 160)
 
 [node name="Main" type="Node2D"]
 
+[node name="MapArt" type="Node2D" parent="."]
+script = ExtResource("7_map_art")
+
 [node name="Walls" type="Node2D" parent="."]
 
 [node name="WallTop" type="StaticBody2D" parent="Walls"]
@@ -37,7 +41,7 @@ offset_left = -576.0
 offset_top = -16.0
 offset_right = 576.0
 offset_bottom = 16.0
-color = Color(0.5, 0.5, 0.5, 1)
+color = Color(0.24, 0.31, 0.39, 1)
 
 [node name="WallBottom" type="StaticBody2D" parent="Walls"]
 position = Vector2(576, 632)
@@ -50,7 +54,7 @@ offset_left = -576.0
 offset_top = -16.0
 offset_right = 576.0
 offset_bottom = 16.0
-color = Color(0.5, 0.5, 0.5, 1)
+color = Color(0.24, 0.31, 0.39, 1)
 
 [node name="WallLeft" type="StaticBody2D" parent="Walls"]
 position = Vector2(16, 324)
@@ -63,7 +67,7 @@ offset_left = -16.0
 offset_top = -324.0
 offset_right = 16.0
 offset_bottom = 324.0
-color = Color(0.5, 0.5, 0.5, 1)
+color = Color(0.24, 0.31, 0.39, 1)
 
 [node name="WallRight" type="StaticBody2D" parent="Walls"]
 position = Vector2(1136, 324)
@@ -76,7 +80,7 @@ offset_left = -16.0
 offset_top = -324.0
 offset_right = 16.0
 offset_bottom = 324.0
-color = Color(0.5, 0.5, 0.5, 1)
+color = Color(0.24, 0.31, 0.39, 1)
 
 [node name="WallInnerVertical" type="StaticBody2D" parent="Walls"]
 position = Vector2(400, 220)
@@ -89,7 +93,7 @@ offset_left = -16.0
 offset_top = -150.0
 offset_right = 16.0
 offset_bottom = 150.0
-color = Color(0.5, 0.5, 0.5, 1)
+color = Color(0.24, 0.31, 0.39, 1)
 
 [node name="WallInnerHorizontal" type="StaticBody2D" parent="Walls"]
 position = Vector2(750, 430)
@@ -102,7 +106,11 @@ offset_left = -150.0
 offset_top = -16.0
 offset_right = 150.0
 offset_bottom = 16.0
-color = Color(0.5, 0.5, 0.5, 1)
+color = Color(0.24, 0.31, 0.39, 1)
+
+[node name="WallTrim" type="Node2D" parent="."]
+script = ExtResource("7_map_art")
+layer = "wall_trim"
 
 [node name="NurseStation" type="Area2D" parent="." node_paths=PackedStringArray("time")]
 position = Vector2(200, 324)
@@ -117,7 +125,7 @@ offset_left = -128.0
 offset_top = -80.0
 offset_right = 128.0
 offset_bottom = 80.0
-color = Color(0.3, 0.8, 0.5, 0.25)
+color = Color(0.8, 0.92, 1, 0.12)
 
 [node name="Items" type="Node2D" parent="."]
 
