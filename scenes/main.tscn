@@ -24,6 +24,45 @@ size = Vector2(300, 32)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_nurse_station"]
 size = Vector2(256, 160)
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hud"]
+bg_color = Color(0, 0, 0, 0.6)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_clear"]
+content_margin_left = 64.0
+content_margin_top = 40.0
+content_margin_right = 64.0
+content_margin_bottom = 40.0
+bg_color = Color(0.05, 0.2, 0.12, 0.95)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.4, 1, 0.6, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gameover"]
+content_margin_left = 64.0
+content_margin_top = 40.0
+content_margin_right = 64.0
+content_margin_bottom = 40.0
+bg_color = Color(0.22, 0.04, 0.04, 0.95)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(1, 0.4, 0.4, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
 [node name="Main" type="Node2D"]
 
 [node name="HospitalDecor" type="Node2D" parent="."]
@@ -102,10 +141,18 @@ autostart = true
 
 [node name="UI" type="CanvasLayer" parent="."]
 
+[node name="HudPanel" type="Panel" parent="UI"]
+offset_left = 10.0
+offset_top = 8.0
+offset_right = 230.0
+offset_bottom = 84.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_hud")
+
 [node name="TimeLabel" type="Label" parent="UI" node_paths=PackedStringArray("time")]
-offset_left = 16.0
-offset_right = 216.0
-offset_bottom = 34.0
+offset_left = 22.0
+offset_top = 12.0
+offset_right = 222.0
+offset_bottom = 46.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 6
@@ -115,9 +162,10 @@ script = ExtResource("3_time_label")
 time = NodePath("../../Time")
 
 [node name="ItemCountLabel" type="Label" parent="UI"]
-offset_left = 180.0
-offset_right = 380.0
-offset_bottom = 34.0
+offset_left = 22.0
+offset_top = 44.0
+offset_right = 222.0
+offset_bottom = 78.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 6
@@ -142,26 +190,32 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="UI/ClearScreen/CenterContainer"]
+[node name="PanelContainer" type="PanelContainer" parent="UI/ClearScreen/CenterContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_clear")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/ClearScreen/CenterContainer/PanelContainer"]
 layout_mode = 2
 theme_override_constants/separation = 24
 
-[node name="TitleLabel" type="Label" parent="UI/ClearScreen/CenterContainer/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="UI/ClearScreen/CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 56
+theme_override_colors/font_color = Color(0.5, 1, 0.65, 1)
+theme_override_font_sizes/font_size = 64
 text = "CLEAR"
 horizontal_alignment = 1
 
-[node name="MessageLabel" type="Label" parent="UI/ClearScreen/CenterContainer/VBoxContainer"]
+[node name="MessageLabel" type="Label" parent="UI/ClearScreen/CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "夜勤脱出成功!"
+text = "夜勤脱出成功!
+3つのアイテムを集めて戻れました"
 horizontal_alignment = 1
 
-[node name="RestartButton" type="Button" parent="UI/ClearScreen/CenterContainer/VBoxContainer"]
+[node name="RestartButton" type="Button" parent="UI/ClearScreen/CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "RESTART"
+text = "RESTART(Enter / Space)"
 
 [node name="GameOverScreen" type="ColorRect" parent="UI"]
 visible = false
@@ -180,26 +234,32 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="UI/GameOverScreen/CenterContainer"]
+[node name="PanelContainer" type="PanelContainer" parent="UI/GameOverScreen/CenterContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_gameover")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="UI/GameOverScreen/CenterContainer/PanelContainer"]
 layout_mode = 2
 theme_override_constants/separation = 24
 
-[node name="TitleLabel" type="Label" parent="UI/GameOverScreen/CenterContainer/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="UI/GameOverScreen/CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 56
+theme_override_colors/font_color = Color(1, 0.45, 0.45, 1)
+theme_override_font_sizes/font_size = 64
 text = "GAME OVER"
 horizontal_alignment = 1
 
-[node name="MessageLabel" type="Label" parent="UI/GameOverScreen/CenterContainer/VBoxContainer"]
+[node name="MessageLabel" type="Label" parent="UI/GameOverScreen/CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
-text = "時間切れ"
+text = "時間切れ…
+制限時間内に脱出できませんでした"
 horizontal_alignment = 1
 
-[node name="RestartButton" type="Button" parent="UI/GameOverScreen/CenterContainer/VBoxContainer"]
+[node name="RestartButton" type="Button" parent="UI/GameOverScreen/CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
-text = "RESTART"
+text = "RESTART(Enter / Space)"
 
 [node name="GameFlow" type="Node" parent="." node_paths=PackedStringArray("player", "time", "nurse_station", "clear_screen", "clear_restart_button", "game_over_screen", "game_over_restart_button")]
 script = ExtResource("6_game_flow")
@@ -207,6 +267,6 @@ player = NodePath("../Player")
 time = NodePath("../Time")
 nurse_station = NodePath("../NurseStation")
 clear_screen = NodePath("../UI/ClearScreen")
-clear_restart_button = NodePath("../UI/ClearScreen/CenterContainer/VBoxContainer/RestartButton")
+clear_restart_button = NodePath("../UI/ClearScreen/CenterContainer/PanelContainer/VBoxContainer/RestartButton")
 game_over_screen = NodePath("../UI/GameOverScreen")
-game_over_restart_button = NodePath("../UI/GameOverScreen/CenterContainer/VBoxContainer/RestartButton")
+game_over_restart_button = NodePath("../UI/GameOverScreen/CenterContainer/PanelContainer/VBoxContainer/RestartButton")
