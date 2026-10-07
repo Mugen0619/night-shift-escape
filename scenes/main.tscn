@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/item_count_label.gd" id="5_item_count_label"]
 [ext_resource type="Script" path="res://scripts/game_flow.gd" id="6_game_flow"]
 [ext_resource type="Script" path="res://scripts/hospital_decor.gd" id="7_hospital_decor"]
+[ext_resource type="Script" path="res://scripts/nurse_station_marker.gd" id="8_station_marker"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
 size = Vector2(1152, 32)
@@ -73,6 +74,9 @@ time = NodePath("../Time")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="NurseStation"]
 shape = SubResource("RectangleShape2D_nurse_station")
+
+[node name="GoalMarker" type="Node2D" parent="NurseStation"]
+script = ExtResource("8_station_marker")
 
 [node name="Items" type="Node2D" parent="."]
 
