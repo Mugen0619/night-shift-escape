@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/nurse_station.gd" id="4_nurse_station"]
 [ext_resource type="Script" path="res://scripts/item_count_label.gd" id="5_item_count_label"]
 [ext_resource type="Script" path="res://scripts/game_flow.gd" id="6_game_flow"]
+[ext_resource type="Script" path="res://scripts/hospital_decor.gd" id="7_hospital_decor"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_horizontal"]
 size = Vector2(1152, 32)
@@ -24,6 +25,9 @@ size = Vector2(256, 160)
 
 [node name="Main" type="Node2D"]
 
+[node name="HospitalDecor" type="Node2D" parent="."]
+script = ExtResource("7_hospital_decor")
+
 [node name="Walls" type="Node2D" parent="."]
 
 [node name="WallTop" type="StaticBody2D" parent="Walls"]
@@ -32,25 +36,11 @@ position = Vector2(576, 16)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallTop"]
 shape = SubResource("RectangleShape2D_horizontal")
 
-[node name="ColorRect" type="ColorRect" parent="Walls/WallTop"]
-offset_left = -576.0
-offset_top = -16.0
-offset_right = 576.0
-offset_bottom = 16.0
-color = Color(0.5, 0.5, 0.5, 1)
-
 [node name="WallBottom" type="StaticBody2D" parent="Walls"]
 position = Vector2(576, 632)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallBottom"]
 shape = SubResource("RectangleShape2D_horizontal")
-
-[node name="ColorRect" type="ColorRect" parent="Walls/WallBottom"]
-offset_left = -576.0
-offset_top = -16.0
-offset_right = 576.0
-offset_bottom = 16.0
-color = Color(0.5, 0.5, 0.5, 1)
 
 [node name="WallLeft" type="StaticBody2D" parent="Walls"]
 position = Vector2(16, 324)
@@ -58,25 +48,11 @@ position = Vector2(16, 324)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallLeft"]
 shape = SubResource("RectangleShape2D_vertical")
 
-[node name="ColorRect" type="ColorRect" parent="Walls/WallLeft"]
-offset_left = -16.0
-offset_top = -324.0
-offset_right = 16.0
-offset_bottom = 324.0
-color = Color(0.5, 0.5, 0.5, 1)
-
 [node name="WallRight" type="StaticBody2D" parent="Walls"]
 position = Vector2(1136, 324)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallRight"]
 shape = SubResource("RectangleShape2D_vertical")
-
-[node name="ColorRect" type="ColorRect" parent="Walls/WallRight"]
-offset_left = -16.0
-offset_top = -324.0
-offset_right = 16.0
-offset_bottom = 324.0
-color = Color(0.5, 0.5, 0.5, 1)
 
 [node name="WallInnerVertical" type="StaticBody2D" parent="Walls"]
 position = Vector2(400, 220)
@@ -84,25 +60,11 @@ position = Vector2(400, 220)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallInnerVertical"]
 shape = SubResource("RectangleShape2D_inner_vertical")
 
-[node name="ColorRect" type="ColorRect" parent="Walls/WallInnerVertical"]
-offset_left = -16.0
-offset_top = -150.0
-offset_right = 16.0
-offset_bottom = 150.0
-color = Color(0.5, 0.5, 0.5, 1)
-
 [node name="WallInnerHorizontal" type="StaticBody2D" parent="Walls"]
 position = Vector2(750, 430)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Walls/WallInnerHorizontal"]
 shape = SubResource("RectangleShape2D_inner_horizontal")
-
-[node name="ColorRect" type="ColorRect" parent="Walls/WallInnerHorizontal"]
-offset_left = -150.0
-offset_top = -16.0
-offset_right = 150.0
-offset_bottom = 16.0
-color = Color(0.5, 0.5, 0.5, 1)
 
 [node name="NurseStation" type="Area2D" parent="." node_paths=PackedStringArray("time")]
 position = Vector2(200, 324)
@@ -111,13 +73,6 @@ time = NodePath("../Time")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="NurseStation"]
 shape = SubResource("RectangleShape2D_nurse_station")
-
-[node name="ColorRect" type="ColorRect" parent="NurseStation"]
-offset_left = -128.0
-offset_top = -80.0
-offset_right = 128.0
-offset_bottom = 80.0
-color = Color(0.3, 0.8, 0.5, 0.25)
 
 [node name="Items" type="Node2D" parent="."]
 
