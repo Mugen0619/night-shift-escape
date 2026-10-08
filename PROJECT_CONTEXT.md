@@ -2,7 +2,7 @@
 
 このファイルは、このプロジェクトにおける**仕様の正(Single Source of Truth)**である。仕様・状態が変わったら、このファイルを更新する。判断の理由は[decisions.md](./decisions.md)に記録する。
 
-最終更新: 2026-10-08(Day 9「最小限の効果音・ゲームフィードバック」完了時)
+最終更新: 2026-10-08(Day 6〜8 の見た目・UIの実装内容を反映)
 
 ---
 
@@ -162,6 +162,9 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - アイテム取得数UI、ナースステーションへの帰還によるクリア条件判定(Day 4。Issue #20 / PR #21)
   - ゲーム進行状態の管理(GameFlow)、クリア画面、ゲームオーバー画面、リスタート(Day 5。Issue #24 / PR #25)
   - Claude CodeによるIssue→実装→PR作成の自動化(CI③。Issue #28 / PR #29、認証の変更 Issue #30 / PR #31、E2Eテスト Issue #32 / PR #33)
+  - 病院マップのピクセルアート調の見た目(Day 6。Issue #44 / PR #45。旧案の Issue #36 / PR #41、Issue #42 / PR #43 は採用せずクローズ)
+  - プレイヤー・アイテム・ナースステーションの見た目(Day 7。Issue #37 / PR #46)
+  - UI(残り時間・アイテム取得数)・クリア画面・ゲームオーバー画面の見た目、残り30秒以下での残り時間の赤表示(Day 8。Issue #38 / PR #47)
   - 最小限の効果音(アイテム取得・クリア・ゲームオーバー・リスタート)(Day 9。Issue #39 / PR #48)
 - **現在の状態管理:**
   - `GameManager`(`scripts/game_manager.gd`)をAutoloadとして登録している(Decision 012)。
@@ -175,13 +178,13 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - ゲーム開始と同時に180秒からカウントダウンし、0秒で停止する(マイナスにはならない)。0秒になると `timeout` シグナルで時間切れを通知する。Day 3・4 時点では、この通知を受けて動く処理はなかった。Day 5 からは GameFlow がこの通知を受け取り、ゲームオーバーにする(Decision 017)。
   - 残り時間は `UI`(CanvasLayer)> `TimeLabel`(Label)+ `scripts/time_label.gd` が表示する。毎フレーム `Time` の `time_left` を読み、画面左上に `TIME MM:SS`(分・秒とも2桁の0埋め)で固定表示する。
   - 秒の端数は切り上げて表示する。`TIME 00:00` になるのは、実際に0秒になったときだけ。
-  - 表示は白文字+黒縁のみで、残り時間による色の変化・点滅などの演出はない。
+  - 表示は白文字+黒縁のみで、残り時間による色の変化・点滅などの演出はない。(Day 3 時点。Day 8 からは、残り30秒以下になると文字を赤(`Color(1, 0.35, 0.35)`)にして、時間が少ないことを知らせる。点滅はない(Decision 021))
 - **アイテム取得数UI:**(Decision 016)
   - `UI`(CanvasLayer)> `ItemCountLabel`(Label)+ `scripts/item_count_label.gd` が表示する。
-  - TimeLabel の右隣に `ITEM 0/3`〜`ITEM 3/3` を固定表示する。見た目は TimeLabel と同じ(白文字+黒縁、24px)。
+  - TimeLabel の右隣に `ITEM 0/3`〜`ITEM 3/3` を固定表示する。見た目は TimeLabel と同じ(白文字+黒縁、24px)。(Day 4 時点。Day 8 からは、画面左上の半透明の黒いパネル `HudPanel` の中で、TimeLabel の下に表示する(Decision 021))
   - 毎フレーム `GameManager.get_collected_count()` を読んで表示する。
 - **ナースステーション・クリア条件判定:**(Decision 016)
-  - `Main` 直下の Area2D `NurseStation` + `scripts/nurse_station.gd`。スタート地点 (200, 324) を中心に 256×160。半透明の四角で表示する。
+  - `Main` 直下の Area2D `NurseStation` + `scripts/nurse_station.gd`。スタート地点 (200, 324) を中心に 256×160。半透明の四角で表示する。(Day 5 時点。Day 6・7 からは、病院マップ側の床の色・破線の枠と、目印 `GoalMarker` の「GOAL」の札・矢印・四隅の強調で示す。「ゲーム画面の見た目(Day 6〜8)」を参照)
   - NurseStation は、プレイヤーが入ったこと、アイテムを3つ取得済みか、制限時間内か、を確認して、クリア条件の成立を通知する。
   - クリア条件:3つのアイテムをすべて取得済み **かつ** `Time.time_left > 0` **かつ** ナースステーションに入る。`Time` の値は読むだけ(`@export var time: Timer` で参照する)。
   - 判定は `body_entered`(入った瞬間)のときだけ行う。毎フレームの判定はしない。
@@ -214,10 +217,29 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - **終了画面:** `UI`(CanvasLayer)の下に `ClearScreen` / `GameOverScreen`(半透明の黒い背景(ColorRect)+ 文字 + `RESTART` ボタン)を置く。通常は非表示。
     - Clear 画面:`CLEAR` / `夜勤脱出成功!` / `RESTART`
     - Game Over 画面:`GAME OVER` / `時間切れ` / `RESTART`
+    - (Day 5 時点。Day 8 からは、半透明の黒い背景の上に色付きのパネル(Clear は濃い緑、Game Over は濃い赤)を置き、その中に文字とボタンを並べる。文言とボタンの表示は「ゲーム画面の見た目(Day 6〜8)」を参照)
     - アニメーション・フェードなどの演出はない。
   - **リスタート:** RESTART ボタンを押すと、`GameManager.reset_items()` → `get_tree().reload_current_scene()` の順に行う(Day 9 からは、その間に `SoundEffects.play_restart()` で効果音を鳴らす)。
     - Input Map は追加していない。Godot 標準の Button の操作(`ui_accept`)により、マウスクリック・Enter・Space で押せる。
     - Main シーンが初期状態から作り直され、`ITEM 0/3`、`TIME 03:00`、Player が初期位置、`PLAYING`、Clear / Game Over 画面は非表示、アイテム3つが再配置された状態になる。
+- **ゲーム画面の見た目(Day 6〜8):**(Decision 021)
+  - 見た目はすべて Godot 標準の描画(`_draw()` による矩形・円・多角形・線)で描いている。画像ファイル・外部素材は使っていない(ライセンスの問題はない)。
+  - 見た目を描くノードは、衝突判定・ゲームロジックとは分けている。壁の見た目は、衝突判定(`Walls` の StaticBody2D)と同じ座標に描く。
+  - **病院マップ(Day 6、`scripts/hospital_decor.gd`、Main の最初の子 `HospitalDecor`):**
+    - 見下ろし型のピクセルアート調。白〜ライトブルーグレー〜ダークブルーグレーを中心とした約20色のパレットに限定する。
+    - 床は32pxのタイル(2色の市松と薄い目地)。壁は濃い輪郭・明るい天面・暗い側面で厚みを出し、影を付ける。天井灯の淡い光だまりと、壁際の暗がりで、夜の静かな雰囲気を出す。
+    - ベッド・点滴スタンド・モニター付きの医療機器台・ロッカー・棚・机・椅子・医療ワゴン・植物・ゴミ箱を配置し、ナースステーションにはL字のカウンター・モニター・書類・電話・十字マークの表示板を描く。部屋や廊下は床を分けるのではなく、家具・設備の配置で病室エリアなどとして見せている。
+    - 家具は「輪郭+本体+上のハイライト+下の影」の箱を組み合わせて描く。家具には衝突判定はなく、見た目だけ。
+  - **プレイヤー・アイテム・ナースステーション(Day 7):**
+    - プレイヤー(`scripts/player.gd` の `_draw()`):当たり判定 32×32 の範囲に収まる看護師風の人物(青い制服・ナースキャップ・足元の影)。
+    - アイテム(`scripts/item.gd` の `_draw()`):丸い台座の上に、種類ごとのアイコンを描く。鍵は金色の鍵、カルテは青いバインダーと白い紙、懐中電灯はオレンジの本体と光。
+    - ナースステーション(`scripts/nurse_station_marker.gd`、NurseStation の子 `GoalMarker`):判定範囲の床を淡い緑にし、四隅の強調と「GOAL」の札・下向きの矢印で、ゴール地点だと分かるようにする。
+    - 移動・衝突・アイテム取得・クリア判定のロジックは変更していない。
+  - **UI・終了画面(Day 8):**
+    - 残り時間とアイテム取得数は、画面左上の半透明の黒いパネル `HudPanel` の中に、`TIME MM:SS`・`ITEM n/3` の順で縦に並べる(24px)。残り30秒以下になると `TIME` の文字が赤になる(`scripts/time_label.gd`)。
+    - Clear 画面:濃い緑のパネルに `CLEAR`(64px)、`夜勤脱出成功!` / `3つのアイテムを集めて戻れました`、`RESTART(Enter / Space)` ボタン。
+    - Game Over 画面:濃い赤のパネルに `GAME OVER`(64px)、`時間切れ…` / `制限時間内に脱出できませんでした`、`RESTART(Enter / Space)` ボタン。
+    - パネルの後ろには、これまでどおり半透明の黒い背景(ColorRect)がある。GameFlow による状態遷移・リスタートの処理は変更していない。
 - **効果音(Day 9):**(Decision 020)
   - ゲーム進行を補助するフィードバックとして、最小限の効果音を追加した。Day 9 の目的であるゲームフィードバックは達成した(開発者の実機確認で、4種類とも鳴ることを確認済み)。
     | タイミング | 呼び出し元 | 音 |
