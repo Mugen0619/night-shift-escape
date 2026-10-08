@@ -164,6 +164,7 @@ jobs:
             </issue>
 
       # Claude Code の結果を確認し、問題がなければ作業ブランチだけをpushする(強制pushはしない)。
+      # commit が1つもなく、未 commit の変更もない場合は「変更なし」として正常終了する(push・PR作成はしない)。
       - name: Verify and push branch
         id: push
         env:
@@ -182,8 +183,12 @@ jobs:
           fi
           commits="$(git rev-list --count origin/main..HEAD)"
           if [ "$commits" -eq 0 ]; then
-            echo "::error::Claude Code が commit していません(仕様が曖昧などで停止した可能性があります)。実行ログを確認してください。"
-            exit 1
+            # ダミーのコミットは作らない。push しないので、create-pr ジョブもスキップされる。
+            echo "::notice title=変更なし::Claude Code は変更を commit しませんでした(変更不要と判断した、または仕様が曖昧などで停止した可能性があります)。push と PR の作成は行いません。実行ログを確認してください。"
+            echo "### CI③ 実装結果" >> "$GITHUB_STEP_SUMMARY"
+            echo "- 変更なし:Claude Code は commit しませんでした。push と PR の作成は行っていません。" >> "$GITHUB_STEP_SUMMARY"
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
           if git diff --name-only origin/main..HEAD | grep -q '^\.github/'; then
             git diff --name-only origin/main..HEAD | grep '^\.github/'
