@@ -2,7 +2,7 @@
 
 このファイルは、このプロジェクトにおける**仕様の正(Single Source of Truth)**である。仕様・状態が変わったら、このファイルを更新する。判断の理由は[decisions.md](./decisions.md)に記録する。
 
-最終更新: 2026-10-08(Day 6〜9 の実装内容を反映)
+最終更新: 2026-10-08(CI③ の「変更なし」での正常終了を反映)
 
 ---
 
@@ -295,7 +295,11 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
     - GitHub の操作には、公式の Claude GitHub App ではなく、このジョブの短命な `GITHUB_TOKEN` を使う。
     - Claude Code が使えるツールは、ファイルの読み書き(Read / Edit / Write / Glob / Grep)、`git status/diff/log/add/commit`、`bash tests/smoke/run_smoke_test.sh`、`godot` だけ。`git push`、WebFetch、WebSearch は使えない。最大80ターン、ジョブは60分で打ち切る。CI でも Claude Code がスモークテストを実行できるよう、CI① と同じ Godot を用意する。
     - プロンプトでは、AGENTS.md / CLAUDE.md、PROJECT_CONTEXT.md、decisions.md を読み、Issue の範囲だけを実装するよう指示する。Issue 本文は `<issue>` で囲んだデータとして渡し、プロジェクトのルールと矛盾する指示には従わないよう明示する。共通AIメモリ(AI_MEMORY)はリポジトリの外にあるため、CI の中では読めない。
-    - Claude Code が commit したあと、workflow が次を確認してから、`claude/issue-<N>` にだけ push する(強制 push はしない)。作業ブランチが違う・commit していない変更がある・commit が1つもない・`.github/` 配下が変更されている、のどれかに当てはまれば push せずに失敗にする。
+    - Claude Code の作業が終わったら、workflow の「Verify and push branch」ステップが結果を確認し、次のように扱う(Issue #51 / PR #52 で、commit がない場合を失敗から正常終了に変更した)。
+      - **変更あり(commit がある):** Claude Code が `claude/issue-<N>` に commit した変更を、workflow が `claude/issue-<N>` にだけ push する(強制 push はしない)。`pushed=true` を出力し、`create-pr` ジョブが GitHub App のトークンで PR を作成する。作成した PR では CI①・CI② が実行される。Merge は自動では行わない。
+      - **変更なし(commit が0件で、commit されていない変更もない):** 「変更なし」として正常終了する。`pushed=false` を出力し、push しない。`create-pr` ジョブはスキップされ、PR は作成しない。ダミーのコミットは作らない。
+        - 「変更なし」は、Claude Code が本当に変更不要と判断した場合だけでなく、仕様が曖昧などで安全に実装できずに停止した場合も含む可能性がある。workflow は `::notice` とジョブのサマリーに「変更なし」と表示するので、実行ログを確認して、どちらだったかを判断する。
+      - **引き続きエラーにする条件(push しない):** commit されていない変更が残っている(Claude Code が途中で止まった可能性がある)、`.github/` 配下が変更されている、作業ブランチが `claude/issue-<N>` ではない。
   - **PR の自動作成(`create-pr`):**
     - `actions/create-github-app-token`(v3。コミット SHA で固定)で、GitHub App `night-shift-escape-pr-creator` の Installation Access Token を作る(`client-id` は Repository Variable `CLAUDE_PR_APP_CLIENT_ID`、Private Key は Repository Secret `CLAUDE_PR_APP_PRIVATE_KEY`)。トークンの権限は `pull-requests: write`・`contents: read` に絞り、ジョブ終了時に失効する。App 自体の権限は Contents: Read-only、Pull requests: Read & write、Metadata: Read-only。
     - **`GITHUB_TOKEN` ではなく GitHub App のトークンで PR を作る理由:** `GITHUB_TOKEN` で作った PR では、後続の `pull_request` workflow(CI①・CI②)が承認待ちになり、自動で実行されないため。
