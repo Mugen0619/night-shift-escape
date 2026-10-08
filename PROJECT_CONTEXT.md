@@ -2,7 +2,7 @@
 
 このファイルは、このプロジェクトにおける**仕様の正(Single Source of Truth)**である。仕様・状態が変わったら、このファイルを更新する。判断の理由は[decisions.md](./decisions.md)に記録する。
 
-最終更新: 2026-10-06(CI③「Claude CodeによるIssue→実装→PR作成の自動化」導入時)
+最終更新: 2026-10-08(Day 9「最小限の効果音・ゲームフィードバック」完了時)
 
 ---
 
@@ -151,7 +151,7 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
 
 ## 18. 現在の開発状況
 
-- **フェーズ:** MVPの機能を実装済み(Day 5「クリア・ゲームオーバー・リスタート」、CI①「GitHub Actionsによるスモークテスト」、CI②「GeminiによるPR自動レビュー」およびCI③「Claude CodeによるIssue→実装→PR作成の自動化」まで完了)
+- **フェーズ:** MVPの機能を実装済み(Day 9「最小限の効果音・ゲームフィードバック」、CI①「GitHub Actionsによるスモークテスト」、CI②「GeminiによるPR自動レビュー」およびCI③「Claude CodeによるIssue→実装→PR作成の自動化」まで完了)。次は Day 10「最終調整・バグ修正・完成確認」(Issue #40)のフェーズ。
 - **実装済み:**
   - Godotプロジェクトの初期設定(Issue #1 / PR #2)
   - プレイヤー表示、4方向移動、壁との衝突判定(Day 1。Issue #3 / PR #4)
@@ -162,6 +162,7 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
   - アイテム取得数UI、ナースステーションへの帰還によるクリア条件判定(Day 4。Issue #20 / PR #21)
   - ゲーム進行状態の管理(GameFlow)、クリア画面、ゲームオーバー画面、リスタート(Day 5。Issue #24 / PR #25)
   - Claude CodeによるIssue→実装→PR作成の自動化(CI③。Issue #28 / PR #29、認証の変更 Issue #30 / PR #31、E2Eテスト Issue #32 / PR #33)
+  - 最小限の効果音(アイテム取得・クリア・ゲームオーバー・リスタート)(Day 9。Issue #39 / PR #48)
 - **現在の状態管理:**
   - `GameManager`(`scripts/game_manager.gd`)をAutoloadとして登録している(Decision 012)。
   - 現在管理しているのは `has_key` / `has_chart` / `has_flashlight` の3つだけ。アイテム取得時に `collect_item(item_type)` で更新する。タイマーは扱わない。
@@ -214,9 +215,20 @@ Gitの運用(Issue → ブランチ → Pull Request)は、AI_MEMORYの[DEVELOPM
     - Clear 画面:`CLEAR` / `夜勤脱出成功!` / `RESTART`
     - Game Over 画面:`GAME OVER` / `時間切れ` / `RESTART`
     - アニメーション・フェードなどの演出はない。
-  - **リスタート:** RESTART ボタンを押すと、`GameManager.reset_items()` → `get_tree().reload_current_scene()` の順に行う。
+  - **リスタート:** RESTART ボタンを押すと、`GameManager.reset_items()` → `get_tree().reload_current_scene()` の順に行う(Day 9 からは、その間に `SoundEffects.play_restart()` で効果音を鳴らす)。
     - Input Map は追加していない。Godot 標準の Button の操作(`ui_accept`)により、マウスクリック・Enter・Space で押せる。
     - Main シーンが初期状態から作り直され、`ITEM 0/3`、`TIME 03:00`、Player が初期位置、`PLAYING`、Clear / Game Over 画面は非表示、アイテム3つが再配置された状態になる。
+- **効果音(Day 9):**(Decision 020)
+  - ゲーム進行を補助するフィードバックとして、最小限の効果音を追加した。Day 9 の目的であるゲームフィードバックは達成した(開発者の実機確認で、4種類とも鳴ることを確認済み)。
+    | タイミング | 呼び出し元 | 音 |
+    |---|---|---|
+    | アイテム取得 | `scripts/item.gd` | 短い上昇音(2音) |
+    | クリア | `scripts/game_flow.gd`(`CLEARED` に移ったとき) | 上がる4音 |
+    | ゲームオーバー | `scripts/game_flow.gd`(`GAME_OVER` に移ったとき) | 下がる3音 |
+    | リスタート | `scripts/game_flow.gd`(RESTART を押したとき) | 短い1音 |
+  - `scripts/sound_effects.gd` を Autoload `SoundEffects` として登録している。音声ファイルは使わず、起動時にコードでサイン波の短い音(16bit モノラル、`AudioStreamWAV`)を作り、`AudioStreamPlayer` 1つで鳴らす。外部素材を使わないため、ライセンスの問題はない。
+  - 音量は控えめ(振幅 0.25)で、音の終わりに向けて小さくなる。音が鳴らなくても、ゲームの進行には影響しない。
+  - BGM は、今回の MVP では実装していない。音量設定・ミュート・サウンド設定画面もない。
 - **既知の改善候補(MVPでは修正しない):**
   - **終了画面の背景:** Clear / Game Over 画面は半透明の黒いオーバーレイを使っているため、背後の `TIME` / `ITEM` の表示も暗く見える。終了画面としての読みやすさ・操作性は確保されているため、MVPでは修正しない。将来の UI 改善候補とする。
   - **ブラウザ向けの日本語フォント:** 現在の Windows 環境では日本語の表示を確認済み。ブラウザ向け書き出し(Web export)時の日本語フォントの表示は未検証。Web公開を行う段階で、必要に応じて検証・対応する。
