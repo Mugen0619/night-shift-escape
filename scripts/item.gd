@@ -27,6 +27,7 @@ func _on_body_entered(body: Node2D) -> void:
 	if not body.is_in_group("player"):
 		return
 	GameManager.collect_item(item_type)
+	SoundEffects.play_item()
 	# ノードごと削除するので、同じアイテムをもう一度取得することはない。
 	queue_free()
 

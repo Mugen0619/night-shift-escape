@@ -31,6 +31,7 @@ func _on_clear_condition_met() -> void:
 	if state != State.PLAYING:
 		return
 	state = State.CLEARED
+	SoundEffects.play_clear()
 	_stop_player()
 	# stop() だと time_left が 0 になり「TIME 00:00」と表示されるため、
 	# paused で止めて、クリアした時点の残り時間を表示したままにする。
@@ -42,6 +43,7 @@ func _on_time_timeout() -> void:
 	if state != State.PLAYING:
 		return
 	state = State.GAME_OVER
+	SoundEffects.play_game_over()
 	_stop_player()
 	_show_end_screen(game_over_screen, game_over_restart_button)
 
@@ -61,4 +63,5 @@ func _show_end_screen(screen: Control, restart_button: Button) -> void:
 func _on_restart_pressed() -> void:
 	# GameManager は Autoload なのでシーンを読み込み直しても状態が残る。先に初期化する。
 	GameManager.reset_items()
+	SoundEffects.play_restart()
 	get_tree().reload_current_scene()
